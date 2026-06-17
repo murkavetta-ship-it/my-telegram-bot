@@ -1,25 +1,23 @@
-import asyncio
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import CommandStart
+import os
+import telebot
 
-# === НАСТРОЙКИ БОТА ===
-BOT_TOKEN = "8916051883:AAH9HWISsdjfZaXyCOfGTCKrEmH5xrG1kk8" # Ваш токен
-CHANNEL_ID = -1003735848662 # ID вашего канала
-# ======================
+# Настройки бота
+BOT_TOKEN = "8916051883:AAH9HWISsdjfZaXyCOfGTCKrEmH5xrG1kk8"
+CHANNEL_ID = -1003735848662
 
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
+bot = telebot.TeleBot(BOT_TOKEN)
 
-@dp.message(CommandStart())
-async def start_cmd(message: types.Message):
-    await message.answer("Привет! Перешли мне пост с ценой грн, я сам добавлю '+вага' и отправлю в канал.")
+@bot.message_handler(commands=['start'])
+def start_cmd(message):
+    bot.reply_to(message, "Привет! Перешли мне пост с ценой грн, я сам добавлю '+вага' и отправлю в канал.")
 
-@dp.message()
-async def handle_message(message: types.Message):
+@bot.message_handler(content_types=['text', 'photo', 'video'])
+def handle_message(message):
     text = message.text or message.caption or ""
     if not text:
         return
 
+    # Автоматически заменяем 'грн' на 'грн +вага'
     if "грн" in text:
         new_text = text.replace("грн", "грн +вага")
     elif "Грн" in text:
@@ -28,20 +26,22 @@ async def handle_message(message: types.Message):
         new_text = text
 
     try:
-        if message.text:
-            await bot.send_message(chat_id=CHANNEL_ID, text=new_text, parse_mode="HTML")
-        elif message.photo:
+        if message.content_type == 'text':
+            bot.send_message(chat_id=CHANNEL_ID, text=new_text, parse_mode="HTML")
+        elif message.content_type == 'photo':
             photo_id = message.photo[-1].file_id
-            await bot.send_photo(chat_id=CHANNEL_ID, photo=photo_id, caption=new_text, parse_mode="HTML")
-        elif message.video:
-            await bot.send_video(chat_id=CHANNEL_ID, video=message.video.file_id, caption=new_text, parse_mode="HTML")
-        await message.answer("Готово! Пост отправлен в канал.")
+            bot.send_photo(chat_id=CHANNEL_ID, photo=photo_id, caption=new_text, parse_mode="HTML")
+        elif message.content_type == 'video':
+            bot.send_video(chat_id=CHANNEL_ID, video=message.video.file_id, caption=new_text, parse_mode="HTML")
+        
+        bot.reply_to(message, "Готово! Пост изменен и отправлен в канал.")
     except Exception as e:
-        await message.answer(f"Ошибка отправки: {e}")
+        bot.reply_to(message, f"Ошибка при отправке: {e}")
 
 if __name__ == "__main__":
     print("Бот успешно запущен и ожидает сообщений...")
-    try:
-        asyncio.run(dp.start_polling(bot, handle_as_tasks=False))
-    except KeyboardInterrupt:
-        print("Бот остановлен.")
+    # Запускаем фоновый веб-сервер, чтобы Render не усыплял бота
+    port = int(os.environ.get("PORT", 10000))
+    os.system(f"python -m http.server {port} &")
+    # Включаем самого бота
+    bot.infinity_polling(timeout=10, long_polling_timeout=5)
