@@ -32,7 +32,7 @@ DEFAULT_CAPTIONS = [
     "✨ Чудового ранку! Нехай день пройде під мирним небом, спокійно та продуктивно! Бережіть себе! ❤️"
 ]
 
-# Функция, которая проверяет время и отправляет случайный пост из архива
+# Функция, которая проверяет время и отправляет случайный пост (фото или видео) из архива
 # 05:00 по времени сервера Render — это ровно 08:00 по Киевскому времени
 def morning_scheduler():
     already_sent = False
@@ -46,28 +46,32 @@ def morning_scheduler():
                     # Сканируем последние 50 сообщений из вашего архива
                     updates = bot.get_chat_history(chat_id=ARCHIVE_CHANNEL_ID, limit=50)
                     
-                    # Фильтруем только те сообщения, в которых есть картинки
-                    photo_messages = [msg for msg in updates if msg.content_type == 'photo']
+                    # Фильтруем сообщения, где есть ИЛИ фото, ИЛИ видео
+                    media_messages = [msg for msg in updates if msg.content_type in ['photo', 'video']]
                     
-                    if photo_messages:
-                        # Выбираем случайное сообщение с картинкой
-                        random_msg = random.choice(photo_messages)
-                        photo_id = random_msg.photo[-1].file_id
+                    if media_messages:
+                        # Выбираем случайное медиа-сообщение
+                        random_msg = random.choice(media_messages)
                         
-                        # Берем текст, который вы написали под картинкой в архиве. 
-                        # Если там пусто, выбираем случайное красивое пожелание о мире
+                        # Определяем случайный текст пожелания
                         if random_msg.caption:
                             caption_text = random_msg.caption
                         else:
                             caption_text = random.choice(DEFAULT_CAPTIONS)
                         
-                        # Публикуем в главный канал
-                        bot.send_photo(chat_id=CHANNEL_ID, photo=photo_id, caption=caption_text)
-                        print("Утренняя открытка из архива успешно отправлена!")
+                        # Проверяем тип контента и отправляем правильной командой
+                        if random_msg.content_type == 'photo':
+                            photo_id = random_msg.photo[-1].file_id
+                            bot.send_photo(chat_id=CHANNEL_ID, photo=photo_id, caption=caption_text)
+                        elif random_msg.content_type == 'video':
+                            video_id = random_msg.video.file_id
+                            bot.send_video(chat_id=CHANNEL_ID, video=video_id, caption=caption_text)
+                            
+                        print("Утренний медиа-пост из архива успешно отправлен!")
                     else:
-                        print("В канале-архиве не найдено картинок.")
+                        print("В канале-архиве не найдено подходящих фото или видео.")
                 except Exception as e:
-                    print(f"Ошибка при автоматической отправке утренней открытки: {e}")
+                    print(f"Ошибка при автоматической отправке утреннего поста: {e}")
                 already_sent = True
         else:
             already_sent = False
