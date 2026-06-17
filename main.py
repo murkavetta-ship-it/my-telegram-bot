@@ -13,18 +13,18 @@ from telebot import types
 
 # --- НАСТРОЙКИ БОТА ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8916051883:AAH9HWISsdjfZaXyCOfGTCKrEmH5xrGlkk8")
-CHANNEL_ID = -1003735848662         # Ваш главный канал для постов
-ARCHIVE_CHANNEL_ID = -1003783532522 # Ваш секретный архив с картинками
+CHANNEL_ID = -1002172825857  # Лог-канал для постов
+ARCHIVE_CHANNEL_ID = -1001717537237  # Канал-архив с картинками
 
 SETTINGS_FILE = "settings.json"
 
-# Базовые настройки по умолчанию
+# Значения настроек по умолчанию
 DEFAULT_SETTINGS = {
-    "usd_rate": 45.5,
-    "eur_rate": 52.5,
-    "gbp_rate": 61.5,
+    "usd_rate": 43.5,
+    "eur_rate": 47.5,
+    "gbp_rate": 55.5,
     "commission": 1.10,
-    "global_discount": 0  # Глобальная скидка дня в % (0 - если выключена)
+    "global_discount": 0.0  # Глобальная скидка дня в % (0 если выключена)
 }
 
 def load_settings():
@@ -49,18 +49,18 @@ bot = telebot.TeleBot(BOT_TOKEN)
 
 DEFAULT_CAPTIONS = [
     "☀️ Доброго ранку! Гарного та продуктивного дня! ✨",
-    "☕ Ранок починається з кави та гарного настрою! Бажаю всім вдалого дня! ❤️",
-    "💫 Прокидайтеся з посмішкою! Нехай сьогоднішній день принесе багато радості! ☀️",
-    "🍃 Чудового ранку! Бажаю, щоб сьогодні все задумане вдалося! ❤️",
-    "✨ Доброго ранку, красуні! Бажаю натхнення та яскравого дня! ❤️",
-    "🌷 Прекрасного ранку! Нехай цей день принесе море позитиву та вдалих знахідок! ✨",
-    "🌸 Доброго ранку! Нехай сьогоднішній день буде легким, сонячним та наповненим приємними моментами! ☕",
-    "☕ Затишного ранку та смачної кави! Бажаю чудового настрою на весь день! ❤️",
-    "🍇 Радісного ранку! Прокидайтеся та підкорюйте цей світ своєю посмішкою! Гарного дня! ☀️",
-    "💫 Доброго ранку! Нехай каждый момент сьогоднішнього дня приносить радість та натхнення! ✨",
-    "🕊️ Мирного та тихого ранку! Нехай цей день буде безпечним, спокійним та принесе лише хороші новини! ✨",
-    "☀️ Доброго ранку! Бажаю мирного неба над головою, затишку в оселі та гармонії в душі! ✨",
-    "🌺 Чудового ранку! Нехай день пройде под мирним небом, спокійно та продуктивно! Бережіть себе! ❤️"
+    "✨ Ранок починається з кави та гарного настрою! Бажаю всім вдалого дня! ❤️",
+    "☀️ Прокидайтеся з посмішкою! Нехай сьогоднішній день принесе багато радості! 🔥",
+    "🌸 Чудового ранку! Бажаю, щоб сьогодні все задумане вдалося! ❤️",
+    "✨ Доброго ранку, красуні! Бажаю натхнення та яскравого дня! 💅",
+    "🦋 Прекрасного ранку! Нехай цей день принесе море позитиву та вдалих знахідок! ✨",
+    "☕️ Доброго ранку! Нехай сьогоднішній день буде легким, сонячним та наповненим приємними моментами! 🌸",
+    "☀️ Затишного ранку та смачної кави! Бажаю чудового настрою на весь день! ❤️",
+    "🌅 Радісного ранку! Прокидайтеся та підкорюйте цей світ своєю посмішкою! Гарного дня! ☀️",
+    "🌻 Доброго ранку! Нехай кожен момент сьогоднішнього дня приносить радість та натхнення! ✨",
+    "🕊 Мирного та тихого ранку! Нехай цей день буде безпечним, спокійним та принесе лише хороші новини! ✨",
+    "🌤 Доброго ранку! Бажаю мирного неба над головою, затишку в оселі та гармонії в душі! ✨",
+    "🌸 Чудового ранку! Нехай день пройде під мирним небом, спокійно та продуктивно! Бережіть себе! ❤️"
 ]
 
 def morning_scheduler():
@@ -80,12 +80,12 @@ def morning_scheduler():
                         bot.send_photo(chat_id=CHANNEL_ID, photo=random_msg.photo[-1].file_id, caption=caption_text)
                     elif random_msg.content_type == 'video':
                         bot.send_video(chat_id=CHANNEL_ID, video=random_msg.video.file_id, caption=caption_text)
-            except Exception as e:
-                print(f"[-] Ошибка утреннего поста: {e}")
-            already_sent = True
-        elif current_time != "05:00":
-            already_sent = False
-        time.sleep(30)
+                except Exception as e:
+                    print(f"[-] Ошибка утреннего поста: {e}")
+                already_sent = True
+            elif current_time != "05:00":
+                already_sent = False
+            time.sleep(30)
 
 def fetch_price_from_url(url):
     """Резервный парсер сайтов"""
@@ -97,14 +97,14 @@ def fetch_price_from_url(url):
         url_lower = url.lower()
         
         if any(x in url_lower for x in ['uk', 'sportsdirect', 'uniqlo', 'next', 'hm.com']): currency = 'GBP'
-        elif any(x in url_lower for x in ['mangooutlet', 'kiabi', 'zara', 'massimodutti', 'benetton', 'kiko']): currency = 'EUR'
+        elif any(x in url_lower for x in ['mangootlet', 'kiabi', 'zara', 'massimodutti', 'benetton', 'kiko']): currency = 'EUR'
         else: currency = 'USD'
-
+        
         potential_prices = []
         for tag in soup.find_all(['span', 'div', 'p']):
             text = tag.text.strip()
             if any(sym in text for sym in ['$', '€', '£']):
-                cleaned = re.sub(r'[^\d,.]', '', text).replace(',', '.')
+                cleaned = re.sub(r'[^\d\.,]', '', text).replace(',', '.')
                 try:
                     val = float(cleaned)
                     if 0.5 < val < 5000: potential_prices.append(val)
@@ -117,63 +117,56 @@ def clean_and_convert_text(text):
     """Умный калькулятор: заменяет цены строго на их местах в тексте"""
     settings = load_settings()
     
-    # 1. Проверяем скидку купона (например: -20%)
+    # # 1. Проверяем скидку купона (например: -20%)
     discount_factor = 1.0
-    discount_match = re.search(r'-(\d+)%', text)
+    discount_match = re.search(r'-\s*(\d+)\s*%', text)
     if discount_match:
         discount_factor = (100 - int(discount_match.group(1))) / 100
     elif settings["global_discount"] > 0:
         discount_factor = (100 - settings["global_discount"]) / 100
-
+        
     # Определяем индивидуальную комиссию для Crocs
     current_commission = 1.05 if "crocs" in text.lower() else settings["commission"]
-
-    # 2. Улучшенный всеядный поиск валют: находит любые форматы (4.00£, £4.00, 4£, £4, 4.00 £)
-    currency_pattern = r'(\d+[\.,]\d+|\d+)\s*([$€£])|([$€£])\s*(\d+[\.,]\d+|\d+)'
-    matches = re.findall(currency_pattern, text)
     
-    if matches:
-        # Собираем список всех найденных оригинальных кусков текста с ценами для точной замены
-        raw_matches_to_replace = []
-        # Паттерн для поиска цен в тексте, чтобы вытащить точные подстроки
-        for raw_found in re.finditer(r'(\d+[\.,]\d+[$€£]|\d+[$€£]|[$€£]\d+[\.,]\d+|[$€£]\d+|\d+[\.,]\d+\s+[$€£]|[$€£]\s+\d+[\.,]\d+)', text):
-            raw_matches_to_replace.append(raw_found.group())
-            
-        unique_matches = list(dict.fromkeys(raw_matches_to_replace))
+    # # 2. Улучшенный всеядный поиск валют (Исправленный баг с £)
+    currency_pattern = r'(?:[$€£]\s*)?\d+(?:[\.,]\d+)?(?:\s*[$€£])?'
+    
+    raw_matches = [m.group() for m in re.finditer(currency_pattern, text) if any(s in m.group() for s in '$€£')]
+    unique_matches = list(dict.fromkeys(raw_matches))
+    
+    for raw_match in unique_matches:
+        price_digit_match = re.search(r'\d+(?:[\.,]\d+)?', raw_match)
+        symbol_match = re.search(r'[$€£]', raw_match)
         
-        for raw_match in unique_matches:
-            price_digit_match = re.search(r'\d+[\.,]\d+|\d+', raw_match)
-            symbol_match = re.search(r'[$€£]', raw_match)
-            
-            if price_digit_match and symbol_match:
-                try:
-                    price_val = float(price_digit_match.group().replace(',', '.'))
-                    symbol = symbol_match.group()
-                    
-                    if symbol == '$': rate = settings["usd_rate"]
-                    elif symbol == '€': rate = settings["eur_rate"]
-                    elif symbol == '£': rate = settings["gbp_rate"]
-                    
-                    # Считаем цену в гривнах
-                    uah_price = math.ceil(price_val * discount_factor * rate * current_commission)
-                    
-                    # Заменяем старую валюту на новую цену прямо на её месте по всему тексту
-                    text = text.replace(raw_match, f"{uah_price}грн+вага")
-                except:
-                    continue
-            
+        if price_digit_match and symbol_match:
+            try:
+                price_val = float(price_digit_match.group().replace(',', '.'))
+                symbol = symbol_match.group()
+                
+                if symbol == '$': rate = settings["usd_rate"]
+                elif symbol == '€': rate = settings["eur_rate"]
+                elif symbol == '£': rate = settings["gbp_rate"]
+                else: continue
+                
+                # Считаем цену в гривнах
+                uah_price = math.ceil(price_val * discount_factor * rate * current_commission)
+                
+                # Заменяем старую валюту на новую цену прямо на её месте
+                text = text.replace(raw_match, f"{uah_price}грн+вага")
+            except:
+                continue
     else:
         # Резервный парсер по ссылке, если в тексте вообще нет значков валют
-        urls = re.findall(r'(https?://[^\s]+)', text)
+        urls = re.findall(r'https?://[^\s]+', text)
         if urls:
-            original_price, currency = fetch_price_from_url(urls)
+            original_price, currency = fetch_price_from_url(urls[0])
             if original_price:
                 rate = settings["usd_rate"] if currency == 'USD' else (settings["eur_rate"] if currency == 'EUR' else settings["gbp_rate"])
                 final_price = math.ceil(original_price * discount_factor * rate * current_commission)
                 lines = text.split('\n')
                 lines = f"{final_price}грн+вага"
                 text = '\n'.join(lines)
-
+                
     # Зачистка от случайных наслоений
     text = text.replace("грн+вага+вага", "грн+вага")
     return text.strip()
@@ -181,16 +174,16 @@ def clean_and_convert_text(text):
 # --- ИНТЕРАКТИВНАЯ КЛАВИАТУРА НАСТРОЕК ---
 def get_settings_keyboard():
     settings = load_settings()
-    comm_pct = int(round((settings["commission"] - 1) * 100))
+    comm_pct = int(round((settings["commission"] - 1.0) * 100))
     disc = settings["global_discount"]
     
     markup = types.InlineKeyboardMarkup(row_width=2)
-    btn_usd = types.InlineKeyboardButton(f"💵 USD: {settings['usd_rate']}", callback_data="set_usd")
-    btn_eur = types.InlineKeyboardButton(f"💶 EUR: {settings['eur_rate']}", callback_data="set_eur")
+    btn_usd = types.InlineKeyboardButton(f"🇺🇸 USD: {settings['usd_rate']}", callback_data="set_usd")
+    btn_eur = types.InlineKeyboardButton(f"🇪🇺 EUR: {settings['eur_rate']}", callback_data="set_eur")
     btn_gbp = types.InlineKeyboardButton(f"💷 GBP: {settings['gbp_rate']}", callback_data="set_gbp")
-    btn_com = types.InlineKeyboardButton(f"📈 Комиссия: +{comm_pct}%", callback_data="set_com")
-    btn_disc = types.InlineKeyboardButton(f"🏷️ Скидка дня: {f'-{disc}%' if disc > 0 else 'Выкл'}", callback_data="set_disc")
-    btn_status = types.InlineKeyboardButton("🔄 Обновить статус", callback_data="show_status")
+    btn_com = types.InlineKeyboardButton(f"📝 Комиссия: +{comm_pct}%", callback_data="set_com")
+    btn_disc = types.InlineKeyboardButton(f"🔸 Скидка дня: {f'-{disc}%' if disc > 0 else 'Выкл'}", callback_data="set_disc")
+    btn_status = types.InlineKeyboardButton("📊 Обновить статус", callback_data="show_status")
     
     markup.add(btn_usd, btn_eur)
     markup.add(btn_gbp, btn_com)
@@ -201,9 +194,9 @@ def get_settings_keyboard():
 @bot.message_handler(commands=['start', 'settings'])
 def show_settings_panel(message):
     bot.send_message(
-        message.chat_id, 
+        message.chat.id,
         "Привет, Богиня! 👑 Добро пожаловать в панель управления тарифами.\n\n"
-        "Нажимайте на кнопки ниже, чтобы мгновенно изменить курсы, общую наценку или активировать глобальную скидку на сегодня. Посты, пересланные без команд, будут сразу пересчитываться по этим тарифам!", 
+        "Нажимайте на кнопки ниже, чтобы мгновенно изменить курсы, общую наценку или активировать глобальную скидку на сегодня. Посты, пересланные без команд, будут сразу пересчитываться по этим тарифам!",
         reply_markup=get_settings_keyboard()
     )
 
@@ -211,22 +204,17 @@ def show_settings_panel(message):
 def handle_callbacks(call):
     settings = load_settings()
     bot.answer_callback_query(call.id)
-    
-        if call.data == "show_status":
-        comm_pct = int(round((settings["commission"] - 1.0) * 100))
-      disc_val = settings.get("global_discount", 0)
-    disc_text = f"-{disc_val}%" if disc_val > 0 else "Нет"
 
-    text = (
-        f"📊 **Текущие активные тарифы:**\n\n"
-        f"🔹 Курс USD: {settings['usd_rate']} грн\n"
-        f"🔹 Курс EUR: {settings['eur_rate']} грн\n"
-        f"🔹 Курс GBP: {settings['gbp_rate']} грн\n"
-        f"🔹 Ваша комиссия: +{comm_pct}%\n"
-        f"🔹 Скидка дня: {disc_text}"
-    )
-        bot.edit_message_text(text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=get_settings_keyboard(), parse_mode="Markdown")
-        
-    elif call.data in ["set_usd", "set_eur", "set_gbp", "set_com", "set_disc"]:
-        prompt_texts = {
-            "set_usd": "Введите новый курс доллара 🇺🇸 (например, 46.2):",
+    if call.data == "show_status":
+        comm_pct = int(round((settings["commission"] - 1.0) * 100))
+        disc_val = settings.get("global_discount", 0)
+        disc_text = f"-{disc_val}%" if disc_val > 0 else "Нет"
+
+        text = (
+            f"📊 **Текущие активные тарифы:**\n\n"
+            f"🔹 Курс USD: {settings['usd_rate']} грн\n"
+            f"🔹 Курс EUR: {settings['eur_rate']} грн\n"
+            f"🔹 Курс GBP: {settings['gbp_rate']} грн\n"
+            f"🔹 Ваша комиссия: +{comm_pct}%\n"
+            f"🔹 Скидка дня: {disc_text}"
+        )
