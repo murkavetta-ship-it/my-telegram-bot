@@ -1,3 +1,1 @@
-
-aiogram==3.13.0
-nest_asyncio
+pyTelegramBotAPI==4.26.0
