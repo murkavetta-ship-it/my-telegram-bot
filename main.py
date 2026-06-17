@@ -12,7 +12,7 @@ from PIL import Image
 import telebot
 
 # --- НАСТРОЙКИ БОТА ---
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8310351083:AAFSw5Y-KC3C5TE6sMuS_m3wWiw6uY7z_kQ")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8916051883:AAH9HWISsdjfZaXyCOfGTCKrEmH5xrGlkk8")
 CHANNEL_ID = -1003735848662         # Ваш главный канал для постов
 ARCHIVE_CHANNEL_ID = -1003783532522 # Ваш секретный архив с картинками
 
