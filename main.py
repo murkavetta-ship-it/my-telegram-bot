@@ -48,7 +48,6 @@ def morning_scheduler():
         now = datetime.now()
         current_time = now.strftime("%H:%M")
         
-        # 05:00 по серверу Render — это 08:00 по Киеву
         if current_time == "05:00":
             if not already_sent:
                 try:
@@ -88,48 +87,13 @@ def fetch_price_from_url(url):
         soup = BeautifulSoup(response.text, 'html.parser')
         url_lower = url.lower()
         
-        # Улучшенное автоопределение: теперь ловит и hm.com, и ://hm.com
         if any(x in url_lower for x in ['crocs.co.uk', 'ebay.co.uk', 'zalando.co.uk', 'next.co', '://uniqlo.com', 'sportsdirect', 'cocooncenter.co.uk', 'hm.com']):
-            currency = 'GBP'  # Англия (Фунты)
-            if 'hm.com' in url_lower and not any(us in url_lower for us in ['/us', 'en_us']):
-                currency = 'GBP' # Если в H&M нет пометки US, то это Англия по умолчанию
+            currency = 'GBP'
         elif any(x in url_lower for x in ['://mangooutlet.com', 'kiabi', '://cos.com', '://zara.com', '://zara.com', 'zarahome', 'oysho', 'massimodutti', 'benetton', '://kikocosmetics.com', '://kikocosmetics.com', 'cocooncenter.de']):
-            currency = 'EUR'  # Европа (Евро)
+            currency = 'EUR'
         else:
-            currency = 'USD'  # США (Доллары)
+            currency = 'USD'
 
-        # Улучшенный поиск цен: теперь находит значки, даже если они прижаты к цифрам вроде 8.00£
-        potential_prices = []
-        for tag in soup.find_all(['span', 'div', 'p', 'h1', 'h2']):
-            text = tag.text.strip()
-            if any(sym in text for sym in ['$', '€', '£', 'GBP', 'EUR', 'USD']):
-                cleaned = re.sub(r'[^\d,.]', '', text).replace(',', '.')
-                try:
-                    val = float(cleaned)
-                    if 0.5 < val < 5000:
-                        potential_prices.append(val)
-                except:
-                    continue
-
-        if potential_prices:
-            return min(potential_prices), currency
-            
-    except Exception as e:
-        print(f"[-] Ошибка парсинга ссылки {url}: {e}")
-    return None, None
-            
-        soup = BeautifulSoup(response.text, 'html.parser')
-        url_lower = url.lower()
-        
-        # 1. Автоопределение валютной зоны сайта (Добавлен британский H&M!)
-        if any(x in url_lower for x in ['crocs.co.uk', 'ebay.co.uk', 'zalando.co.uk', 'next.co', '://uniqlo.com', 'sportsdirect', 'cocooncenter.co.uk', '://hm.com']):
-            currency = 'GBP'  # Фунты
-        elif any(x in url_lower for x in ['://mangooutlet.com', 'kiabi', '://cos.com', '://zara.com', '://zara.com', 'zarahome', 'oysho', 'massimodutti', 'benetton', '://kikocosmetics.com', '://kikocosmetics.com', 'cocooncenter.de']):
-            currency = 'EUR'  # Евро
-        else:
-            currency = 'USD'  # Доллары США (Включая американский H&M, iHerb, 32degrees, Victoria's Secret, Nordstrom и др.)
-
-        # 2. Поиск цен на странице
         potential_prices = []
         for tag in soup.find_all(['span', 'div', 'p', 'h1', 'h2']):
             text = tag.text.strip()
@@ -151,28 +115,22 @@ def fetch_price_from_url(url):
 
 def clean_and_convert_text(text):
     """Применяет купон из текста, рассчитывает цену по тарифам и оформляет пост"""
-    # 1. Считываем купон на скидку из текста (например: -20%)
     discount_factor = 1.0
     discount_match = re.search(r'-(\d+)%', text)
     if discount_match:
         discount_percent = int(discount_match.group(1))
         discount_factor = (100 - discount_percent) / 100
 
-    # 2. Находим ссылку на магазин
     urls = re.findall(r'(https?://[^\s]+)', text)
     
     if urls:
-        target_url = urls
+        target_url = urls[0]
         original_price, currency = fetch_price_from_url(target_url)
         
         if original_price:
-            # Применяем скидку сайта к базовой цене
             discounted_price = original_price * discount_factor
-            
-            # Учитываем индивидуальную комиссию для Crocs (5% вместо 10%)
             current_commission = 1.05 if "crocs" in target_url.lower() else 1.10
             
-            # Считаем итоговую цену в гривнах
             if currency == 'USD':
                 final_price = math.ceil(discounted_price * USD_RATE * current_commission)
             elif currency == 'EUR':
@@ -180,12 +138,10 @@ def clean_and_convert_text(text):
             elif currency == 'GBP':
                 final_price = math.ceil(discounted_price * GBP_RATE * current_commission)
                 
-            # Заменяем первую строчку анонса на наш тариф
             lines = text.split('\n')
-            lines = f"{final_price}грн+вага"
+            lines[0] = f"{final_price}грн+вага"
             text = '\n'.join(lines)
             
-    # Чистка текста от дублирования веса и пробелов
     text = text.replace("грн+вага+вага", "грн+вага").replace("грн+вага", "грн+вага")
     text = re.sub(r' +', ' ', text)
     text = re.sub(r'\n\s*\n', '\n', text).strip()
@@ -194,7 +150,7 @@ def clean_and_convert_text(text):
 # --- МОДУЛЬ 3: ОБРАБОТЧИКИ СООБЩЕНИЙ ТЕЛЕГРАМ ---
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
-    bot.reply_to(message, "Привет, Богиня! 👑 Все системы запущены, мультивалютный H&M (США/Англия) настроен. Просто пересылай анонсы пачками!")
+    bot.reply_to(message, "Привет, Богиня! 👑 Все системы запущены, отступы выровнены, мультивалютный парсер полностью готов. Просто пересылай анонсы!")
 
 @bot.message_handler(content_types=['text', 'photo', 'video'])
 def handle_message(message):
