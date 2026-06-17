@@ -97,20 +97,23 @@ def clean_and_convert_text(text):
 
     usd_pattern = r'\$(\d+(?:\.\d+)?)|\b(\d+(?:\.\d+)?)\s*\$'
     
+    # 1. Если цена в долларах ($), запускаем ваш пересчет в гривны
     if "$" in text:
         text = re.sub(usd_pattern, replace_usd, text)
-    elif "грн" in text.lower():
-        if "грн" in text:
-            text = text.replace("грн", "грн+вага")
-        else:
-            text = text.replace("Грн", "Грн+вага")
-    elif text.strip().isdigit():
-        text = f"{text.strip()} грн+вага"
-    else:
-        text = re.sub(r'(\d+)\b(?! грн)', r'\1 грн+вага', text)
         
+    # 2. Обрабатываем существующие упоминания грн/грн+вага
+    # Защищаем от дублирования: сначала убираем "+вага", если оно уже было написано
+    text = text.replace("грн+вага", "грн")
+    text = text.replace("Грн+вага", "Грн")
+    
+    # Теперь у нас везде чистые "грн". Меняем их строго на красивый формат
+    text = text.replace("грн", "грн+вага")
+    text = text.replace("Грн", "Грн+вага")
+
+    # 3. Убираем лишние двойные пробелы, которые могли возникнуть
     text = re.sub(r' +', ' ', text)
     text = re.sub(r'\n\s*\n', '\n', text).strip()
+    
     return text
 
 @bot.message_handler(commands=['start'])
