@@ -12,7 +12,7 @@ import telebot
 from telebot import types
 
 # --- НАСТРОЙКИ БОТА ---
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8916051883:AAH9HWISsdjfZaXyCOfGTCKrEmH5xrGlkk8")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8916051883:AAEDiJIcniHtsgmHGmw_qx4KrARoU7gC67g")
 CHANNEL_ID = -1003735848662         # Ваш главный канал для постов
 ARCHIVE_CHANNEL_ID = -1003783532522 # Ваш секретный архив с картинками
 
