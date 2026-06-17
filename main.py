@@ -18,11 +18,11 @@ ARCHIVE_CHANNEL_ID = -1001717537237  # Канал-архив с картинка
 
 SETTINGS_FILE = "settings.json"
 
-# Значения настроек по умолчанию
+# Значения настроек по умолчанию (Установлены ваши новые курсы!)
 DEFAULT_SETTINGS = {
-    "usd_rate": 43.5,
-    "eur_rate": 47.5,
-    "gbp_rate": 55.5,
+    "usd_rate": 45.5,
+    "eur_rate": 52.5,
+    "gbp_rate": 61.5,
     "commission": 1.10,
     "global_discount": 0.0  # Глобальная скидка дня в % (0 если выключена)
 }
@@ -60,7 +60,7 @@ DEFAULT_CAPTIONS = [
     "🌻 Доброго ранку! Нехай кожен момент сьогоднішнього дня приносить радість та натхнення! ✨",
     "🕊 Мирного та тихого ранку! Нехай цей день буде безпечним, спокійним та принесе лише хороші новини! ✨",
     "🌤 Доброго ранку! Бажаю мирного неба над головою, затишку в оселі та гармонії в душі! ✨",
-    "🌸 Чудового ранку! Нехай день пройде під мирним небом, спокійно та продуктивно! Бережіть себе! ❤️"
+    "🌸 Чудового ранку! Нехай день пройде под мирним небом, спокійно та продуктивно! Бережіть себе! ❤️"
 ]
 
 def morning_scheduler():
@@ -80,12 +80,12 @@ def morning_scheduler():
                         bot.send_photo(chat_id=CHANNEL_ID, photo=random_msg.photo[-1].file_id, caption=caption_text)
                     elif random_msg.content_type == 'video':
                         bot.send_video(chat_id=CHANNEL_ID, video=random_msg.video.file_id, caption=caption_text)
-                except Exception as e:
-                    print(f"[-] Ошибка утреннего поста: {e}")
-                already_sent = True
-            elif current_time != "05:00":
-                already_sent = False
-            time.sleep(30)
+            except Exception as e:
+                print(f"[-] Ошибка утреннего поста: {e}")
+            already_sent = True
+        elif current_time != "05:00":
+            already_sent = False
+        time.sleep(30)
 
 def fetch_price_from_url(url):
     """Резервный парсер сайтов"""
@@ -117,7 +117,6 @@ def clean_and_convert_text(text):
     """Умный калькулятор: заменяет цены строго на их местах в тексте"""
     settings = load_settings()
     
-    # # 1. Проверяем скидку купона (например: -20%)
     discount_factor = 1.0
     discount_match = re.search(r'-\s*(\d+)\s*%', text)
     if discount_match:
@@ -125,10 +124,8 @@ def clean_and_convert_text(text):
     elif settings["global_discount"] > 0:
         discount_factor = (100 - settings["global_discount"]) / 100
         
-    # Определяем индивидуальную комиссию для Crocs
     current_commission = 1.05 if "crocs" in text.lower() else settings["commission"]
     
-    # # 2. Улучшенный всеядный поиск валют (Исправленный баг с £)
     currency_pattern = r'(?:[$€£]\s*)?\d+(?:[\.,]\d+)?(?:\s*[$€£])?'
     
     raw_matches = [m.group() for m in re.finditer(currency_pattern, text) if any(s in m.group() for s in '$€£')]
@@ -148,18 +145,14 @@ def clean_and_convert_text(text):
                 elif symbol == '£': rate = settings["gbp_rate"]
                 else: continue
                 
-                # Считаем цену в гривнах
                 uah_price = math.ceil(price_val * discount_factor * rate * current_commission)
-                
-                # Заменяем старую валюту на новую цену прямо на её месте
                 text = text.replace(raw_match, f"{uah_price}грн+вага")
             except:
                 continue
     else:
-        # Резервный парсер по ссылке, если в тексте вообще нет значков валют
         urls = re.findall(r'https?://[^\s]+', text)
         if urls:
-            original_price, currency = fetch_price_from_url(urls[0])
+            original_price, currency = fetch_price_from_url(urls)
             if original_price:
                 rate = settings["usd_rate"] if currency == 'USD' else (settings["eur_rate"] if currency == 'EUR' else settings["gbp_rate"])
                 final_price = math.ceil(original_price * discount_factor * rate * current_commission)
@@ -167,7 +160,6 @@ def clean_and_convert_text(text):
                 lines = f"{final_price}грн+вага"
                 text = '\n'.join(lines)
                 
-    # Зачистка от случайных наслоений
     text = text.replace("грн+вага+вага", "грн+вага")
     return text.strip()
 
@@ -218,3 +210,10 @@ def handle_callbacks(call):
             f"🔹 Ваша комиссия: +{comm_pct}%\n"
             f"🔹 Скидка дня: {disc_text}"
         )
+        bot.edit_message_text(text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=get_settings_keyboard(), parse_mode="Markdown")
+
+    elif call.data in ["set_usd", "set_eur", "set_gbp", "set_com", "set_disc"]:
+        prompt_texts = {
+            "set_usd": "Введите новый курс доллара US (например, 45.5):",
+            "set_eur": "Введите новый курс евро EUR (например, 52.5):",
+            "set_gbp": "Введите новый курс фунта GBP (например, 61.5):",
