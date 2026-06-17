@@ -82,8 +82,8 @@ def fetch_price_from_url(url):
     return None, None
 
 def clean_and_convert_text(text):
-    """Умный текстовый калькулятор + парсер купонов"""
-    # 1. Проверяем скидку (например: -20%)
+    """Улучшенный калькулятор: точечно заменяет абсолютно все цены по всему тексту поста"""
+    # 1. Проверяем скидку купона (например: -20%)
     discount_factor = 1.0
     discount_match = re.search(r'-(\d+)%', text)
     if discount_match:
@@ -92,43 +92,52 @@ def clean_and_convert_text(text):
     # Определяем индивидуальную комиссию для Crocs
     current_commission = 1.05 if "crocs" in text.lower() else COMMISSION
 
-    # 2. Охота на валюту прямо в тексте (Ищет форматы: 8.00£, 9.00$, 10€, £8.00)
-    # Ищет любые цифры, рядом с которыми стоят знаки $, €, £
-    currency_pattern = r'([\d.,]+)\s*([$€£])|([$€£])\s*([\d.,]+)'
+    # 2. Ищем все упоминания валют: форматы 8.00£, 9.00$, 10€, £8.00, $55
+    currency_pattern = r'([\d.,]+\s*[$€£]|[$€£]\s*[\d.,]+)'
     matches = re.findall(currency_pattern, text)
 
     extracted_prices = []
+    
     if matches:
-        for match in matches:
-            # Вытаскиваем цифру и символ из регулярки
-            price_str = match[0] or match[3]
-            symbol = match[1] or match[2]
-            try:
-                price_val = float(price_str.replace(',', '.'))
-                # Пересчитываем в гривны в зависимости от значка в тексте
-                if symbol == '$': rate = USD_RATE
-                elif symbol == '€': rate = EUR_RATE
-                elif symbol == '£': rate = GBP_RATE
-                
-                uah_price = math.ceil(price_val * discount_factor * rate * current_commission)
-                extracted_prices.append(uah_price)
-            except:
-                continue
-
-    # 3. Формируем финальный ценник наверх
-    if extracted_prices:
-        if len(extracted_prices) == 1:
-            price_line = f"{extracted_prices[0]}грн+вага"
-        else:
-            # Если в тексте было две цены (как у H&M — 8 и 9), бот красиво выведет вилку цен!
-            price_line = f"{extracted_prices[0]}грн+вага - {extracted_prices[1]}грн+вага"
+        # Убираем дубликаты совпадений, если они есть, сохраняя порядок
+        unique_matches = list(dict.fromkeys(matches))
         
-        # Ставим наши готовые цены в самый верх поста
-        lines = text.split('\n')
-        lines[0] = price_line
-        text = '\n'.join(lines)
+        for raw_match in unique_matches:
+            # Находим цифры и знак внутри этого совпадения
+            price_digit_match = re.search(r'[\d.,]+', raw_match)
+            symbol_match = re.search(r'[$€£]', raw_match)
+            
+            if price_digit_match and symbol_match:
+                try:
+                    price_val = float(price_digit_match.group().replace(',', '.'))
+                    symbol = symbol_match.group()
+                    
+                    # Привязываем правильный курс к значку
+                    if symbol == '$': rate = USD_RATE
+                    elif symbol == '€': rate = EUR_RATE
+                    elif symbol == '£': rate = GBP_RATE
+                    
+                    # Считаем вашу цену в гривнах
+                    uah_price = math.ceil(price_val * discount_factor * rate * current_commission)
+                    extracted_prices.append(uah_price)
+                    
+                    # ТОЧЕЧНАЯ ЗАМЕНА: заменяем старую валюту на новую цену грн во ВСЕМ тексте
+                    text = text.replace(raw_match, f"{uah_price}грн+вага")
+                except:
+                    continue
+
+        # 3. Делаем красивую шапку-вилку цен на самой первой строчке
+        if extracted_prices:
+            if len(extracted_prices) == 1:
+                price_header = f"{extracted_prices[0]}грн+вага"
+            else:
+                price_header = f"{extracted_prices[0]}грн+вага - {extracted_prices[1]}грн+вага"
+            
+            # Добавляем вилку в самый верх, сохраняя весь остальной измененный текст снизу
+            text = f"{price_header}\n{text}"
+            
     else:
-        # Если цен в валюте в тексте не нашли — включаем стандартный парсер по ссылке
+        # Если цен в валюте в тексте вообще нет — включаем стандартный парсер по ссылке
         urls = re.findall(r'(https?://[^\s]+)', text)
         if urls:
             original_price, currency = fetch_price_from_url(urls[0])
@@ -139,13 +148,14 @@ def clean_and_convert_text(text):
                 lines[0] = f"{final_price}грн+вага"
                 text = '\n'.join(lines)
 
-    # Очистка от мусора
+    # Финальная зачистка от случайных наслоений
     text = text.replace("грн+вага+вага", "грн+вага")
     return text.strip()
 
+# --- МОДУЛЬ 3: ОБРАБОТЧИКИ СООБЩЕНИЙ ТЕЛЕГРАМ ---
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
-    bot.reply_to(message, "Привет, Богиня! 👑 Умный Текстовый Калькулятор и парсер запущены. Полная защита от блокировок сайтов активна!")
+    bot.reply_to(message, "Привет, Богиня! 👑 Тотальный калькулятор цен по всему тексту запущен. Больше никакой старой валюты в постах!")
 
 @bot.message_handler(content_types=['text', 'photo', 'video'])
 def handle_message(message):
@@ -159,7 +169,7 @@ def handle_message(message):
             bot.send_photo(chat_id=CHANNEL_ID, photo=message.photo[-1].file_id, caption=new_text, parse_mode="HTML")
         elif message.content_type == 'video':
             bot.send_video(chat_id=CHANNEL_ID, video=message.video.file_id, caption=new_text, parse_mode="HTML")
-        bot.reply_to(message, "Готово, Богиня! Все цены в тексте пересчитаны! 🔥")
+        bot.reply_to(message, "Готово, Богиня! Пост полностью очищен от валюты и пересчитан! 🔥")
     except Exception as e:
         bot.reply_to(message, f"Ошибка отправки: {e}")
 
