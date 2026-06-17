@@ -39,7 +39,6 @@ async def handle_message(message: types.Message):
     except Exception as e:
         await message.answer(f"Ошибка отправки: {e}")
 
-# Упрощенный запуск без сложного polling-цикла
 if __name__ == "__main__":
     print("Бот успешно запущен и ожидает сообщений...")
     try:
