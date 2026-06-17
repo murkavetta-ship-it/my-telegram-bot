@@ -2,7 +2,7 @@ import os
 import telebot
 
 # Настройки бота
-BOT_TOKEN = "8916051883:AAH9HWISsdjfZaXyCOfGTCKrEmH5xrG1kk8"
+BOT_TOKEN = "8916051883:AAH9HWISsdjfZaXyCOfGTCKrEmH5xrGlkk8"
 CHANNEL_ID = -1003735848662
 
 bot = telebot.TeleBot(BOT_TOKEN)
