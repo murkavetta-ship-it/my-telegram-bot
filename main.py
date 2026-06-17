@@ -189,7 +189,7 @@ def get_settings_keyboard():
 @bot.message_handler(commands=['start', 'settings'])
 def show_settings_panel(message):
     bot.send_message(
-        message.chat_id, 
+        message.chat.id,  # ТУТ ИСПРАВЛЕНО (было message.chat_id)
         "Привет, Богиня! 👑 Добро пожаловать в панель управления тарифами.\n\n"
         "Нажимайте на кнопки ниже, чтобы мгновенно изменить курсы, общую наценку или активировать глобальную скидку на сегодня. Посты, пересланные без команд, будут сразу пересчитываться по этим тарифам!", 
         reply_markup=get_settings_keyboard()
