@@ -212,17 +212,20 @@ def handle_callbacks(call):
     settings = load_settings()
     bot.answer_callback_query(call.id)
     
-    if call.data == "show_status":
-        comm_pct = int(round((settings["commission"] - 1) * 100))
-        text = (
-            f"📊 Текущие активные тарифы:\n"
-            f"• Курс USD: {settings['usd_rate']} грн\n"
-            f"• Курс EUR: {settings['eur_rate']} грн\n"
-            f"• Курс GBP: {settings['gbp_rate']} грн\n"
-            f"• Ваша комиссия: +{comm_pct}%\n"
-            f"• Скидка дня: {f'-{settings2.5}%' if settings['global_discount'] > 0 else 'Нет'}"
-        )
-        bot.edit_message_text(text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=get_settings_keyboard())
+        if call.data == "show_status":
+        comm_pct = int(round((settings["commission"] - 1.0) * 100))
+      disc_val = settings.get("global_discount", 0)
+    disc_text = f"-{disc_val}%" if disc_val > 0 else "Нет"
+
+    text = (
+        f"📊 **Текущие активные тарифы:**\n\n"
+        f"🔹 Курс USD: {settings['usd_rate']} грн\n"
+        f"🔹 Курс EUR: {settings['eur_rate']} грн\n"
+        f"🔹 Курс GBP: {settings['gbp_rate']} грн\n"
+        f"🔹 Ваша комиссия: +{comm_pct}%\n"
+        f"🔹 Скидка дня: {disc_text}"
+    )
+        bot.edit_message_text(text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=get_settings_keyboard(), parse_mode="Markdown")
         
     elif call.data in ["set_usd", "set_eur", "set_gbp", "set_com", "set_disc"]:
         prompt_texts = {
