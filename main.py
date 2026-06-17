@@ -88,6 +88,39 @@ def fetch_price_from_url(url):
         soup = BeautifulSoup(response.text, 'html.parser')
         url_lower = url.lower()
         
+        # Улучшенное автоопределение: теперь ловит и hm.com, и ://hm.com
+        if any(x in url_lower for x in ['crocs.co.uk', 'ebay.co.uk', 'zalando.co.uk', 'next.co', '://uniqlo.com', 'sportsdirect', 'cocooncenter.co.uk', 'hm.com']):
+            currency = 'GBP'  # Англия (Фунты)
+            if 'hm.com' in url_lower and not any(us in url_lower for us in ['/us', 'en_us']):
+                currency = 'GBP' # Если в H&M нет пометки US, то это Англия по умолчанию
+        elif any(x in url_lower for x in ['://mangooutlet.com', 'kiabi', '://cos.com', '://zara.com', '://zara.com', 'zarahome', 'oysho', 'massimodutti', 'benetton', '://kikocosmetics.com', '://kikocosmetics.com', 'cocooncenter.de']):
+            currency = 'EUR'  # Европа (Евро)
+        else:
+            currency = 'USD'  # США (Доллары)
+
+        # Улучшенный поиск цен: теперь находит значки, даже если они прижаты к цифрам вроде 8.00£
+        potential_prices = []
+        for tag in soup.find_all(['span', 'div', 'p', 'h1', 'h2']):
+            text = tag.text.strip()
+            if any(sym in text for sym in ['$', '€', '£', 'GBP', 'EUR', 'USD']):
+                cleaned = re.sub(r'[^\d,.]', '', text).replace(',', '.')
+                try:
+                    val = float(cleaned)
+                    if 0.5 < val < 5000:
+                        potential_prices.append(val)
+                except:
+                    continue
+
+        if potential_prices:
+            return min(potential_prices), currency
+            
+    except Exception as e:
+        print(f"[-] Ошибка парсинга ссылки {url}: {e}")
+    return None, None
+            
+        soup = BeautifulSoup(response.text, 'html.parser')
+        url_lower = url.lower()
+        
         # 1. Автоопределение валютной зоны сайта (Добавлен британский H&M!)
         if any(x in url_lower for x in ['crocs.co.uk', 'ebay.co.uk', 'zalando.co.uk', 'next.co', '://uniqlo.com', 'sportsdirect', 'cocooncenter.co.uk', '://hm.com']):
             currency = 'GBP'  # Фунты
