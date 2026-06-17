@@ -114,29 +114,35 @@ def fetch_price_from_url(url):
     return None, None
 
 def clean_and_convert_text(text):
-    """Умный калькулятор: берет изменяемые курсы и комиссии из памяти смарт-файла"""
+    """Умный калькулятор: заменяет цены строго на их местах в тексте"""
     settings = load_settings()
     
-    # 1. Проверяем скидку: сначала ищем купон в самом тексте поста (например: -20%)
+    # 1. Проверяем скидку купона (например: -20%)
     discount_factor = 1.0
     discount_match = re.search(r'-(\d+)%', text)
     if discount_match:
         discount_factor = (100 - int(discount_match.group(1))) / 100
     elif settings["global_discount"] > 0:
-        # Если в тексте купона нет, но включена ГЛОБАЛЬНАЯ скидка в меню настроек — применяем её!
         discount_factor = (100 - settings["global_discount"]) / 100
 
-    # Определяем индивидуальную комиссию для Crocs (5%), для остальных берем из настроек меню
+    # Определяем индивидуальную комиссию для Crocs
     current_commission = 1.05 if "crocs" in text.lower() else settings["commission"]
 
-    # 2. Ищем все упоминания валют в тексте
-    currency_pattern = r'([\d.,]+\s*[$€£]|[$€£]\s*[\d.,]+)'
+    # 2. Улучшенный всеядный поиск валют: находит любые форматы (4.00£, £4.00, 4£, £4, 4.00 £)
+    currency_pattern = r'(\d+[\.,]\d+|\d+)\s*([$€£])|([$€£])\s*(\d+[\.,]\d+|\d+)'
     matches = re.findall(currency_pattern, text)
     
     if matches:
-        unique_matches = list(dict.fromkeys(matches))
+        # Собираем список всех найденных оригинальных кусков текста с ценами для точной замены
+        raw_matches_to_replace = []
+        # Паттерн для поиска цен в тексте, чтобы вытащить точные подстроки
+        for raw_found in re.finditer(r'(\d+[\.,]\d+[$€£]|\d+[$€£]|[$€£]\d+[\.,]\d+|[$€£]\d+|\d+[\.,]\d+\s+[$€£]|[$€£]\s+\d+[\.,]\d+)', text):
+            raw_matches_to_replace.append(raw_found.group())
+            
+        unique_matches = list(dict.fromkeys(raw_matches_to_replace))
+        
         for raw_match in unique_matches:
-            price_digit_match = re.search(r'[\d.,]+', raw_match)
+            price_digit_match = re.search(r'\d+[\.,]\d+|\d+', raw_match)
             symbol_match = re.search(r'[$€£]', raw_match)
             
             if price_digit_match and symbol_match:
@@ -148,12 +154,16 @@ def clean_and_convert_text(text):
                     elif symbol == '€': rate = settings["eur_rate"]
                     elif symbol == '£': rate = settings["gbp_rate"]
                     
+                    # Считаем цену в гривнах
                     uah_price = math.ceil(price_val * discount_factor * rate * current_commission)
+                    
+                    # Заменяем старую валюту на новую цену прямо на её месте по всему тексту
                     text = text.replace(raw_match, f"{uah_price}грн+вага")
                 except:
                     continue
+            
     else:
-        # Резервный парсер по ссылке
+        # Резервный парсер по ссылке, если в тексте вообще нет значков валют
         urls = re.findall(r'(https?://[^\s]+)', text)
         if urls:
             original_price, currency = fetch_price_from_url(urls)
@@ -164,6 +174,7 @@ def clean_and_convert_text(text):
                 lines = f"{final_price}грн+вага"
                 text = '\n'.join(lines)
 
+    # Зачистка от случайных наслоений
     text = text.replace("грн+вага+вага", "грн+вага")
     return text.strip()
 
