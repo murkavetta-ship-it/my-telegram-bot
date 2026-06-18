@@ -251,25 +251,44 @@ def handle_callbacks(call):
         msg = bot.send_message(call.message.chat.id, prompt_texts[call.data])
         bot.register_next_step_handler(msg, process_setting_input, call.data)
         
-    # --- ЛОГИКА КНОПОК ОТПРАВКИ В КАНАЛЫ ---
+    # --- ЛОГИКА КНОПОК ОТПРАВКИ В КАНАЛЫ (С АВТОПОДПИСЯМИ) ---
     elif call.data in ["pub_my", "pub_sis", "pub_both"]:
         msg_text = call.message.text or call.message.caption or ""
         if "Предпросмотр анонса:" in msg_text:
             msg_text = msg_text.replace("📝 Предпросмотр анонса:\n\n", "")
             
-        target_channels = []
-        if call.data == "pub_my": target_channels = [CHANNEL_ID]
-        elif call.data == "pub_sis": target_channels = [CHANNEL_ID_SISTER]
-        elif call.data == "pub_both": target_channels = [CHANNEL_ID, CHANNEL_ID_SISTER]
+        # Умная зачистка старых подписей при пересылке, чтобы они не накладывались
+        msg_text = re.split(r'🛍 Для замовлень 🛍|🛍 Для замовлень сестри 🛍', msg_text)[0].strip()
+            
+        channels_to_publish = []
+        if call.data == "pub_my": channels_to_publish = [CHANNEL_ID]
+        elif call.data == "pub_sis": channels_to_publish = [CHANNEL_ID_SISTER]
+        elif call.data == "pub_both": channels_to_publish = [CHANNEL_ID, CHANNEL_ID_SISTER]
         
         try:
-            for ch_id in target_channels:
+            for ch_id in channels_to_publish:
+                # Бот проверяет ID канала и прикрепляет правильные контакты байера
+                if ch_id == CHANNEL_ID:
+                    signature = (
+                        "\n\n🛍 Для замовлень 🛍\n"
+                        "бандлер https://brandmenu.bunddler.com/web\n"
+                        "📲для зв'язку: @LankaMurrr"
+                    )
+                else:
+                    signature = (
+                        "\n\n🛍 Для замовлень 🛍\n"
+                        "бандлер https://nataliche16.bunddler.com/web\n"
+                        "📲для зв'язку: @nata_c_he"
+                    )
+                
+                final_text = f"{msg_text}{signature}"
+                
                 if call.message.content_type == 'text':
-                    bot.send_message(chat_id=ch_id, text=msg_text, parse_mode="HTML", disable_web_page_preview=True)
+                    bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
                 elif call.message.content_type == 'photo':
-                    bot.send_photo(chat_id=ch_id, photo=call.message.photo[-1].file_id, caption=msg_text, parse_mode="HTML")
+                    bot.send_photo(chat_id=ch_id, photo=call.message.photo[-1].file_id, caption=final_text, parse_mode="HTML")
                 elif call.message.content_type == 'video':
-                    bot.send_video(chat_id=ch_id, video=call.message.video.file_id, caption=msg_text, parse_mode="HTML")
+                    bot.send_video(chat_id=ch_id, video=call.message.video.file_id, caption=final_text, parse_mode="HTML")
             
             bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=None)
             bot.send_message(call.message.chat.id, "🚀 Пост успешно опубликован в выбранные каналы!")
