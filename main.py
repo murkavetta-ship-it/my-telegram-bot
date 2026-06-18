@@ -1,4 +1,4 @@
-import os
+сломалсяimport os
 import re
 import math
 import time
