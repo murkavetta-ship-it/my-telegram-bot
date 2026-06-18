@@ -301,13 +301,14 @@ def handle_callbacks(call):
                 file_id = item["file_id"]
                 raw_text = item["raw_original_text"]
                 
-                if raw_text and "🛍️ Для замовлень 🛍️" in raw_text:
-                    if (ch_id == CHANNEL_ID and "nataliche16" in raw_text) or (ch_id == CHANNEL_ID_SISTER and "brandmenu" in raw_text):
-                        raw_text = raw_text.split("🛍️ Для замовлень 🛍️")[0].strip()
-                        
                 for ch_id in target_channels:
+                    # Умная зачистка старых подписей перед пересчетом
+                    clean_raw_text = raw_text
+                    if clean_raw_text and "🛍️ Для замовлень 🛍️" in clean_raw_text:
+                        clean_raw_text = clean_raw_text.split("🛍️ Для замовлень 🛍️")[0].strip()
+                        
                     current_profile = "my" if ch_id == CHANNEL_ID else "sis"
-                    msg_text = clean_and_convert_text(raw_text, current_profile) if raw_text else ""
+                    msg_text = clean_and_convert_text(clean_raw_text, current_profile) if clean_raw_text else ""
                     
                     if msg_text:
                         if ch_id == CHANNEL_ID:
