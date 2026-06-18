@@ -117,11 +117,12 @@ def morning_scheduler():
             already_sent = False
         time.sleep(30)
         
-       def fetch_price_from_url(url):
+def fetch_price_from_url(url):
     """Резервный парсер сайтов"""
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code != 200: return None, None
         soup = BeautifulSoup(response.text, 'html.parser')
         url_lower = url.lower()
         
@@ -190,6 +191,7 @@ def clean_and_convert_text(text):
 
     text = text.replace("грн+вага+вага", "грн+вага")
     return text.strip()
+
     # --- ИНТЕРАКТИВНАЯ КЛАВИАТУРА НАСТРОЕК ---
 def get_settings_keyboard():
     settings = load_settings()
