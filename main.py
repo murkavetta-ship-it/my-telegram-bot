@@ -285,7 +285,6 @@ def show_settings_panel(message):
         f"Привет, Богиня! 👑 Добро пожаловать в панель управления тарифами: **{profile_name}**.\n\n"
         "Нажимайте на кнопки ниже, чтобы мгновенно изменить курсы, общую наценку или активировать глобальную скидку дня.",
         reply_markup=get_settings_keyboard(message.chat.id),
-        reply_markup=get_settings_keyboard(message.chat.id),
         parse_mode="Markdown"
     )
 
