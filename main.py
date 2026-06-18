@@ -371,6 +371,7 @@ def handle_callbacks(call):
         except Exception as e:
             bot.send_message(user_id, f"❌ Ошибка отправки на {success_count}-м посте: {e}")
         return
+
     if any(call.data.startswith(x) for x in ["set_usd_", "set_eur_", "set_gbp_", "set_com_", "set_disc_"]):
         action = call.data.split("_")
         prompt_texts = {
