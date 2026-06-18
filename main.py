@@ -548,7 +548,7 @@ def handle_message(message):
         })
         bot.send_message(user_id, f"📥 Пост успешно добавлен в корзину! (Позиция №{current_position})")
 
-# Запуск фонового потока планировщика таймеров
+# Запуск фонового потока планировщика таймеров — СТРОГО ПЕРЕД bot.infinity_polling
 threading.Thread(target=morning_scheduler, daemon=True).start()
 
 if __name__ == "__main__":
