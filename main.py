@@ -22,11 +22,11 @@ SETTINGS_FILE = "settings_v2.json"
 DEFAULT_SETTINGS = {
     "my": {
         "usd_rate": 45.5, "eur_rate": 52.5, "gbp_rate": 61.5,
-        "commission": 1.10, "global_discount": 0
+        "commission": 1.10, "global_discount": 0, "use_signature": True
     },
     "sis": {
         "usd_rate": 45.5, "eur_rate": 52.5, "gbp_rate": 61.5,
-        "commission": 1.10, "global_discount": 0
+        "commission": 1.10, "global_discount": 0, "use_signature": True
     }
 }
 
@@ -229,29 +229,24 @@ def get_settings_keyboard(user_id):
     comm_pct = int(round((settings["commission"] - 1) * 100))
     disc = settings["global_discount"]
     
+    # Проверяем статус подписи из настроек (если её там ещё нет, ставим True)
+    sig_status = settings.get("use_signature", True)
+    sig_text = "✍️ Подпись: ✅ Включена" if sig_status else "✍️ Подпись: ❌ Выключена"
+    
     markup = types.InlineKeyboardMarkup(row_width=2)
     btn_usd = types.InlineKeyboardButton(f"💵 USD: {settings['usd_rate']}", callback_data=f"set_usd_{profile}")
     btn_eur = types.InlineKeyboardButton(f"💶 EUR: {settings['eur_rate']}", callback_data=f"set_eur_{profile}")
     btn_gbp = types.InlineKeyboardButton(f"💷 GBP: {settings['gbp_rate']}", callback_data=f"set_gbp_{profile}")
     btn_com = types.InlineKeyboardButton(f"🧾 Комиссия: +{comm_pct}%", callback_data=f"set_com_{profile}")
     btn_disc = types.InlineKeyboardButton(f"🏷️ Скидка дня: {f'{disc}%' if disc > 0 else 'Выкл'}", callback_data=f"set_disc_{profile}")
+    btn_sig = types.InlineKeyboardButton(sig_text, callback_data=f"toggle_sig_{profile}")
     btn_status = types.InlineKeyboardButton("🔄 Обновить статус", callback_data=f"show_status_{profile}")
     
     markup.add(btn_usd, btn_eur)
     markup.add(btn_gbp, btn_com)
-    markup.add(btn_disc)
+    markup.add(btn_disc, btn_sig)
     markup.add(btn_status)
     return markup
-@bot.message_handler(commands=['start', 'settings'])
-def show_settings_panel(message):
-    profile_name = "Шоппинг 🛍️" if message.chat.id == CHANNEL_ID_SISTER else "Брендменю 👑"
-    bot.send_message(
-        message.chat.id,
-        f"Привет, Богиня! 👑 Добро пожаловать в panel управления тарифами: **{profile_name}**.\n\n"
-        "Нажимайте на кнопки ниже, чтобы мгновенно изменить курсы, общую наценку или активировать глобальную скидку дня. Ваши личные настройки полностью независимы!",
-        reply_markup=get_settings_keyboard(message.chat.id),
-        parse_mode="Markdown"
-    )
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callbacks(call):
@@ -263,9 +258,21 @@ def handle_callbacks(call):
     profile_title = "Шоппинг 🛍️" if profile == "sis" else "Брендменю 👑"
     user_id = call.message.chat.id
     
+    # ЛОГИКА ТУМБЛЕРА ПОДПИСИ
+    if call.data.startswith("toggle_sig_"):
+        current_sig = settings.get("use_signature", True)
+        all_settings[profile]["use_signature"] = not current_sig
+        save_settings(all_settings)
+        
+        # Сразу обновляем клавиатуру в чате
+        bot.edit_message_reply_markup(chat_id=user_id, message_id=call.message.message_id, reply_markup=get_settings_keyboard(user_id))
+        return
+    
     if call.data.startswith("show_status_"):
         comm_pct = int(round((settings["commission"] - 1) * 100))
         disc_val = settings.get("global_discount", 0)
+        sig_status = settings.get("use_signature", True)
+        sig_str = "Включена ✅" if sig_status else "Выключена ❌"
         
         text = (
             f"📊 Текущие тарифы панели **{profile_title}**:\n"
@@ -273,7 +280,8 @@ def handle_callbacks(call):
             f"🔹 Курс EUR: {settings['eur_rate']} грн\n"
             f"🔹 Курс GBP: {settings['gbp_rate']} грн\n"
             f"🔹 Ваша комиссия: +{comm_pct}%\n"
-            f"🔹 Скидка дня: {f'{disc_val}%' if disc_val > 0 else 'Нет'}"
+            f"🔹 Скидка дня: {f'{disc_val}%' if disc_val > 0 else 'Нет'}\n"
+            f"🔹 Подпись анонсов: {sig_str}"
         )
         bot.edit_message_text(text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=get_settings_keyboard(call.message.chat.id), parse_mode="Markdown")
         return
