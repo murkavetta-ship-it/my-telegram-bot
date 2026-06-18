@@ -66,7 +66,6 @@ DEFAULT_CAPTIONS = [
     "☀️Доброго ранку! Бажаю мирного неба над головою, затишку в оселі та гармонії в душі! ✨",
     "❤️Чудового ранку! Нехай день пройде под мирним небом, спокійно та продуктивно! Бережіть себе! ❤️"
 ]
-
 def fetch_price_from_url(url):
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -74,7 +73,6 @@ def fetch_price_from_url(url):
         if response.status_code != 200: return None, None
         soup = BeautifulSoup(response.text, 'html.parser')
         url_lower = url.lower()
-        
         if any(x in url_lower for x in ['uk', 'sportsdirect', 'uniqlo', 'next', 'hm.com']): currency = 'GBP'
         elif any(x in url_lower for x in ['mangooutlet', 'kiabi', 'zara', 'massimodutti', 'benetton', 'kiko']): currency = 'EUR'
         else: currency = 'USD'
@@ -173,7 +171,6 @@ def show_settings_panel(message):
         reply_markup=get_settings_keyboard(message.chat.id),
         parse_mode="Markdown"
     )
-
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callbacks(call):
     all_settings = load_settings()
@@ -218,7 +215,6 @@ def handle_callbacks(call):
         import pytz
         kiev_tz = pytz.timezone("Europe/Kyiv")
         now = datetime.now(kiev_tz)
-        
         if call.data == "time_now": target_time = "now"
         elif call.data == "time_30m":
             from datetime import timedelta
@@ -226,7 +222,6 @@ def handle_callbacks(call):
             
         show_channel_selection(user_id, call.message.message_id, target_time)
         return
-
     if call.data.startswith("target_"):
         _, ch_type, target_time = call.data.split("_")
         queue = USER_BUFFERS.get(user_id, [])
@@ -270,7 +265,7 @@ def handle_callbacks(call):
         return
 
     if any(call.data.startswith(x) for x in ["set_usd_", "set_eur_", "set_gbp_", "set_com_", "set_disc_"]):
-        action = call.data.split("_")
+        action = call.data.split("_")[1]
         prompt_texts = {
             "usd": f"[{profile_title}] Введите новый курс доллара us:",
             "eur": f"[{profile_title}] Введите новый курс евро eu:",
@@ -296,6 +291,7 @@ def process_setting_input(message, action, profile):
         bot.send_message(message.chat.id, "✅ Настройки успешно сохранены в память профиля! Нажмите /settings для проверки.")
     except:
         bot.send_message(message.chat.id, "❌ Ошибка ввода числа. Нажмите /settings и попробуйте снова.")
+
 def process_exact_time_input(message):
     user_id = message.chat.id
     time_text = message.text.strip()
@@ -317,7 +313,6 @@ def show_channel_selection(user_id, message_id, target_time):
         bot.edit_message_text(f"Серия будет отправлена **{text_time}**.\n\nКуда публикуем анонсы?", chat_id=user_id, message_id=message_id, reply_markup=markup, parse_mode="Markdown")
     else:
         bot.send_message(user_id, f"Серия будет отправлена **{text_time}**.\n\nКуда публикуем анонсы?", reply_markup=markup, parse_mode="Markdown")
-
 def execute_instant_publication(queue, target_channels, user_id):
     success_count = 0
     all_settings = load_settings()
@@ -373,38 +368,55 @@ def execute_instant_publication(queue, target_channels, user_id):
                         media_group.append(types.InputMediaVideo(media_item["file_id"], caption=caption, parse_mode="HTML"))
                 try: bot.send_media_group(chat_id=ch_id, media=media_group)
                 except: pass
-        elif msg_type == 'photo':
-            try:
-                if len(final_text) <= 1024:
-                    bot.send_photo(chat_id=ch_id, photo=file_id, caption=final_text, parse_mode="HTML")
-                else:
-                    bot.send_photo(chat_id=ch_id, photo=file_id)
-                    bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
-            except: pass
-        elif msg_type == 'video':
-            try:
-                if len(final_text) <= 1024:
-                    bot.send_video(chat_id=ch_id, video=file_id, caption=final_text, parse_mode="HTML")
-                else:
-                    bot.send_video(chat_id=ch_id, video=file_id)
-                    bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
-            except: pass
+            elif msg_type == 'photo':
+                try:
+                    if len(final_text) <= 1024:
+                        bot.send_photo(chat_id=ch_id, photo=file_id, caption=final_text, parse_mode="HTML")
+                    else:
+                        bot.send_photo(chat_id=ch_id, photo=file_id)
+                        bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
+                except: pass
+            elif msg_type == 'video':
+                try:
+                    if len(final_text) <= 1024:
+                        bot.send_video(chat_id=ch_id, video=file_id, caption=final_text, parse_mode="HTML")
+                    else:
+                        bot.send_video(chat_id=ch_id, video=file_id)
+                        bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
+                except: pass
                 
         success_count += 1
+        
     if user_id:
         try: bot.send_message(user_id, f"✅ Успешно выгружено **{success_count}** постов строго по вашему порядку!")
         except: pass
 
-@bot.message_handler(commands=['start', 'settings'])
-def show_settings_panel(message):
-    profile_name = "Шоппинг 🛍️" if message.chat.id == CHANNEL_ID_SISTER else "Брендменю 👑"
-    bot.send_message(
-        message.chat.id,
-        f"Привет, Богиня! 👑 Добро пожаловать в панель управления тарифами: **{profile_name}**.\n\n"
-        "Нажимайте на кнопки ниже, чтобы мгновенно изменить курсы, общую наценку или активировать глобальную скидку дня.",
-        reply_markup=get_settings_keyboard(message.chat.id),
-        parse_mode="Markdown"
-    )
+def save_collected_album(mg_id, u_id, chat_id):
+    try:
+        pieces = ALBUM_BUFFERS.pop(mg_id, [])
+        if not pieces: return
+        pieces.sort(key=lambda x: x['msg_id'])
+        
+        combined_text = ""
+        for p in pieces:
+            if p['txt']:
+                combined_text = p['txt']
+                break
+                
+        media_list = [{"type": p["type"], "file_id": p["file_id"]} for p in pieces]
+        
+        if u_id not in USER_BUFFERS: USER_BUFFERS[u_id] = []
+        pos = len(USER_BUFFERS[u_id]) + 1
+        
+        USER_BUFFERS[u_id].append({
+            "type": "album",
+            "file_id": media_list,
+            "raw_original_text": combined_text,
+            "position": pos
+        })
+        bot.send_message(chat_id, f"📥 Альбом (из {len(pieces)} медиа) успешно добавлен в серию под номером {pos}. Когда закончите, напишите слово **Давай**")
+    except Exception as album_err:
+        bot.send_message(chat_id, f"❌ Ошибка внутри сборщика альбома: {album_err}")
 
 @bot.message_handler(content_types=['text', 'photo', 'video'])
 def handle_message(message):
@@ -412,15 +424,12 @@ def handle_message(message):
         user_id = message.chat.id
         text = message.text if message.text else (message.caption if message.caption else "")
         
-        # Железно создаем корзину, если её ещё нет в памяти
         if user_id not in USER_BUFFERS:
             USER_BUFFERS[user_id] = []
             
-        # Отсекаем только две системные команды
         if text.strip() in ['/start', '/settings']: 
             return
 
-        # Проверка ключевых слов публикации серий
         if text.strip().lower() in ["давай", "давай ", "готово", "пуск"]:
             queue_len = len(USER_BUFFERS[user_id])
             if queue_len == 0:
@@ -438,14 +447,12 @@ def handle_message(message):
 
         current_position = len(USER_BUFFERS[user_id]) + 1
         
-        # БРОНЕБОЙНЫЙ ИСПРАВЛЕННЫЙ СБОР ПРАВИЛЬНЫХ ID ФАЙЛОВ TELEGRAM
         file_id = None
         if message.content_type == 'photo': 
             file_id = message.photo[-1].file_id
         elif message.content_type == 'video': 
-            file_id = message.video.file_id  # ТЕПЕРЬ ОШИБКИ НЕТ!
+            file_id = message.video.file_id
 
-        # Склеиваем альбомы или отправляем одиночные файлы
         if message.media_group_id:
             mg_id = message.media_group_id
             if mg_id not in ALBUM_BUFFERS:
@@ -469,7 +476,6 @@ def handle_message(message):
             
     except Exception as general_err:
         bot.send_message(message.chat.id, f"❌ Критическая ошибка хэндлера: {general_err}")
-
 def morning_scheduler():
     import pytz
     kiev_tz = pytz.timezone("Europe/Kyiv")
