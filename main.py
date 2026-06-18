@@ -13,9 +13,10 @@ from telebot import types
 
 # --- НАСТРОЙКИ БОТА ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-CHANNEL_ID = -1002373540662          # Канал "Брендменю"
-CHANNEL_ID_SISTER = -1001857424835   # Канал "Шоппинг"
-ARCHIVE_CHANNEL_ID = -1001783532522  # Ваш архив
+CHANNEL_ID = -1002373540662          # Ваш основной канал "Брендменю"
+CHANNEL_ID_SISTER = -1001857424835   # Канал "Шоппинг" сестры
+ARCHIVE_CHANNEL_ID = -1004331909805  # ВАШ РЕАЛЬНЫЙ АРХИВ ДЛЯ ТАЙМЕРОВ ФОТО!
+MORNING_CHANNEL_ID = -1003783532522  # ВАШ КАНАЛ С КАРТИНКАМИ УТРА!
 
 SETTINGS_FILE = "settings_v2.json"
 
