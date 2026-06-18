@@ -12,6 +12,7 @@ import telebot
 from telebot import types
 
 # --- НАСТРОЙКИ БОТА ---
+# ТУТ ЗАМЕНИТЕ НА ВАШ ПРАВИЛЬНЫЙ ТОКЕН
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8916051883:AAEDiJIcniHtsgmHGmw_qx4KrARoU7gC67g")
 CHANNEL_ID = -1003735848662          # Канал "Брендменю" (Ваш)
 CHANNEL_ID_SISTER = -1003857424835   # Канал "Шоппинг" (Сестры)
@@ -68,7 +69,7 @@ DEFAULT_CAPTIONS = [
 ]
 
 def morning_scheduler():
-    """Function to automatically send exactly ONE morning post from the archive at 08:30 Kyiv time"""
+    """Функция автоматической отправки строго ОДНОГО утреннего поста строго в 08:30 по Киеву"""
     import pytz
     kiev_tz = pytz.timezone("Europe/Kyiv")
     already_sent = False
@@ -207,7 +208,7 @@ def show_settings_panel(message):
     profile_name = "Шоппинг 👭" if message.chat.id == CHANNEL_ID_SISTER else "Брендменю 🛍"
     bot.send_message(
         message.chat.id, 
-        f"Привет, Богиня! 👑 Добро пожаловать в панель управления тарифами: **{profile_name}**.\n\n"
+        f"Привет, Богиня! 👑 Добро пожаловать в panel управления тарифами: **{profile_name}**.\n\n"
         "Нажимайте на кнопки ниже, чтобы мгновенно изменить курсы, общую наценку или активировать глобальную скидку дня. Ваши личные настройки полностью независимы!", 
         reply_markup=get_settings_keyboard(message.chat.id),
         parse_mode="Markdown"
@@ -238,7 +239,7 @@ def handle_callbacks(call):
         bot.edit_message_text(text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=get_settings_keyboard(call.message.chat.id))
         
     elif any(call.data.startswith(x) for x in ["set_usd_", "set_eur_", "set_gbp_", "set_com_", "set_disc_"]):
-        action = call.data.split("_")[1] # usd, eur, gbp, com, disc
+        action = call.data.split("_") # usd, eur, gbp, com, disc
         prompt_texts = {
             "usd": f"[{profile_title}] Введите новый курс доллара 🇺🇸:",
             "eur": f"[{profile_title}] Введите новый курс евро 🇪🇺:",
@@ -272,10 +273,10 @@ def handle_callbacks(call):
             for item in queue:
                 msg_type = item["type"]
                 file_id = item["file_id"]
-                raw_text = item["raw_original_text"] # Берем чистый исходник, чтобы пересчитать по тарифам конкретного канала!
+                raw_text = item["raw_original_text"] # Берем чистый исходник
                 
-                # Зачищаем старые подписи, если они были
-                if raw_text and "🛍 Для замовлень 🛍" in raw_text:
+                # ДВУХСТОРОННЯЯ УМНАЯ ЗАЧИСТКА: отрезаем Бандлер сестры или ваш, если они уже есть в тексте
+                if raw_text and ("nataliche16" in raw_text or "brandmenu" in raw_text):
                     raw_text = raw_text.split("🛍 Для замовлень 🛍")[0].strip()
                 
                 for ch_id in target_channels:
@@ -300,15 +301,25 @@ def handle_callbacks(call):
                     else:
                         final_text = ""
                     
+                    # Плавная задержка 3.5 секунды перед отправкой для защиты от флуда
+                    time.sleep(3.5)
+                    
                     if msg_type == 'text':
                         bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
                     elif msg_type == 'photo':
-                        bot.send_photo(chat_id=ch_id, photo=file_id, caption=final_text if final_text else None, parse_mode="HTML")
+                        if len(final_text) <= 1024:
+                            bot.send_photo(chat_id=ch_id, photo=file_id, caption=final_text, parse_mode="HTML")
+                        else:
+                            bot.send_photo(chat_id=ch_id, photo=file_id)
+                            bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
                     elif msg_type == 'video':
-                        bot.send_video(chat_id=ch_id, video=file_id, caption=final_text if final_text else None, parse_mode="HTML")
+                        if len(final_text) <= 1024:
+                            bot.send_video(chat_id=ch_id, video=file_id, caption=final_text, parse_mode="HTML")
+                        else:
+                            bot.send_video(chat_id=ch_id, video=file_id)
+                            bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
                 
                 success_count += 1
-                time.sleep(3.5)  # Плавный интервал от флуда
                 
             USER_BUFFERS[user_id] = []  # Чистим буфер
             bot.send_message(user_id, f"✅ Успешно выгружено **{success_count}** постов строго по вашему порядку!")
