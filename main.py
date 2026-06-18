@@ -284,23 +284,22 @@ def handle_callbacks(call):
                     current_profile = "my" if ch_id == CHANNEL_ID else "sis"
                     msg_text = clean_and_convert_text(raw_text, current_profile) if raw_text else ""
                     
-                    if msg_text:
+            if msg_text:
                 if ch_id == CHANNEL_ID:
                     signature = (
                         "\n\n🛍️ Для замовлень 🛍️\n"
-                        "бандлер https://brandmenu.bunddler.com/web\n"
+                        "бандлер https://bunddler.com\n"
                         "📲для зв'язку: @LankaMurrr"
                     )
                 else:
                     signature = (
                         "\n\n🛍️ Для замовлень 🛍️\n"
-                        "бандлер https://nataliche16.bunddler.com/web\n"
+                        "бандлер https://bunddler.com\n"
                         "📲для зв'язку: @nata_c_he"
                     )
-
-                        final_text = f"{msg_text}{signature}"
-                    else:
-                        final_text = ""
+                final_text = f"{msg_text}{signature}"
+            else:
+                final_text = ""
                     
                     # Плавная задержка 3.5 секунды перед отправкой для защиты от флуда
                     time.sleep(3.5)
