@@ -285,18 +285,19 @@ def handle_callbacks(call):
                     msg_text = clean_and_convert_text(raw_text, current_profile) if raw_text else ""
                     
                     if msg_text:
-                        if ch_id == CHANNEL_ID:
-                            signature = (
-                                "\n\n🛍 Для замовлень 🛍\n"
-                                "бандлер https://bunddler.com\n"
-                                "📲для зв'язку: @LankaMurrr"
-                            )
-                        else:
-                            signature = (
-                                "\n\n🛍 Для замовлень 🛍\n"
-                                "бандлер https://bunddler.com\n"
-                                "📲для зв'язку: @nata_c_he"
-                            )
+                if ch_id == CHANNEL_ID:
+                    signature = (
+                        "\n\n🛍️ Для замовлень 🛍️\n"
+                        "бандлер https://brandmenu.bunddler.com/web\n"
+                        "📲для зв'язку: @LankaMurrr"
+                    )
+                else:
+                    signature = (
+                        "\n\n🛍️ Для замовлень 🛍️\n"
+                        "бандлер https://nataliche16.bunddler.com/web\n"
+                        "📲для зв'язку: @nata_c_he"
+                    )
+
                         final_text = f"{msg_text}{signature}"
                     else:
                         final_text = ""
