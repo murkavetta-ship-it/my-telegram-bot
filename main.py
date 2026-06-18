@@ -394,6 +394,17 @@ def execute_instant_publication(queue, target_channels, user_id):
         try: bot.send_message(user_id, f"✅ Успешно выгружено **{success_count}** постов строго по вашему порядку!")
         except: pass
 
+@bot.message_handler(commands=['start', 'settings'])
+def show_settings_panel(message):
+    profile_name = "Шоппинг 🛍️" if message.chat.id == CHANNEL_ID_SISTER else "Брендменю 👑"
+    bot.send_message(
+        message.chat.id,
+        f"Привет, Богиня! 👑 Добро пожаловать в панель управления тарифами: **{profile_name}**.\n\n"
+        "Нажимайте на кнопки ниже, чтобы мгновенно изменить курсы, общую наценку или активировать глобальную скидку дня.",
+        reply_markup=get_settings_keyboard(message.chat.id),
+        parse_mode="Markdown"
+    )
+
 @bot.message_handler(content_types=['text', 'photo', 'video'])
 def handle_message(message):
     try:
@@ -433,13 +444,7 @@ def handle_message(message):
                 pieces = ALBUM_BUFFERS.pop(mg_id, [])
                 if not pieces: return
                 pieces.sort(key=lambda x: x['msg_id'])
-                
-                combined_text = ""
-                for p in pieces:
-                    if p['txt']:
-                        combined_text = p['txt']
-                        break
-                        
+                combined_text = next((p['txt'] for p in pieces if p['txt']), "")
                 media_list = [{"type": p["type"], "file_id": p["file_id"]} for p in pieces]
                 
                 if u_id not in USER_BUFFERS: USER_BUFFERS[u_id] = []
@@ -451,7 +456,7 @@ def handle_message(message):
                     "raw_original_text": combined_text,
                     "position": pos
                 })
-                bot.send_message(chat_id, f"📥 Альбом (из {len(pieces)} медиа) успешно добавлен в серию под номером {pos}. Когда закончите, напишите слово **Давай**")
+                bot.send_message(chat_id, f"📥 Альбом успешно добавлен в серию под номером {pos}. Когда закончите, напишите слово **Давай**")
             except Exception as album_err:
                 bot.send_message(chat_id, f"❌ Ошибка внутри сборщика альбома: {album_err}")
 
@@ -476,7 +481,7 @@ def handle_message(message):
             })
             bot.reply_to(message, f"📥 Пост {current_position} успешно добавлен в серию. Когда закончите, напишите слово **Давай**")
     except Exception as general_err:
-        bot.send_message(message.chat.id, f"❌ Критическая ошибка хэндлера: {general_err}")
+        bot.send_message(message.chat.id, f"❌ Ошибка хэндлера: {general_err}")
 
 if __name__ == "__main__":
     scheduler_thread = threading.Thread(target=morning_scheduler, daemon=True)
