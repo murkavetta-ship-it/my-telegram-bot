@@ -414,7 +414,7 @@ def handle_message(message):
         if user_id not in USER_BUFFERS:
             USER_BUFFERS[user_id] = []
             
-        if text.startswith('/'): 
+        if text.strip() in ['/start', '/settings']: 
             return
 
         if text.strip().lower() in ["давай", "давай ", "готово", "пуск"]:
