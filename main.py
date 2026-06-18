@@ -586,13 +586,17 @@ def handle_message(message):
             "txt": text
         })
     else:
-        USER_BUFFERS[user_id].append({
-            "type": message.content_type,
-            "file_id": file_id,
-            "raw_original_text": text,
-            "position": current_position
-        })
-        bot.reply_to(message, f"📥 Пост {current_position} успешно добавлен в серию. Когда закончите, напишите слово **Давай**")
+        try:
+            pos = len(USER_BUFFERS[user_id]) + 1
+            USER_BUFFERS[user_id].append({
+                "type": message.content_type,
+                "file_id": file_id,
+                "raw_original_text": text,
+                "position": pos
+            })
+            bot.reply_to(message, f"📥 Пост {pos} успешно добавлен в серию. Когда закончите, напишите слово **Давай**")
+        except Exception as e:
+            bot.send_message(user_id, f"❌ Ошибка корзины: {e}")
 
 if __name__ == "__main__":
     scheduler_thread = threading.Thread(target=morning_scheduler, daemon=True)
