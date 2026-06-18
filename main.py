@@ -118,40 +118,79 @@ def morning_scheduler():
                                     continue
                             album_pieces.sort(key=lambda x: x.message_id)
                         media_group = []
-                        for index, p in enumerate(album_pieces):
-                            caption = queue_item["raw_original_text"] if index == 0 else None
-                            if p.content_type == 'photo':
-                                media_group.append(types.InputMediaPhoto(p.photo[-1].file_id, caption=caption, parse_mode="HTML"))
-                            elif p.content_type == 'video':
-                                media_group.append(types.InputMediaVideo(p.video.file_id, caption=caption, parse_mode="HTML"))
-                        
+                         # Пересчитываем текст серии для каждого выбранного канала индивидуально!
+                        all_settings = load_settings()
                         for ch_id in target_channels:
-                            try:
-                                bot.send_media_group(chat_id=ch_id, media=media_group)
-                            except Exception as e:
-                                print(f"[-] Ошибка отложенной отправки альбома: {e}")
+                            clean_text = queue_item["raw_original_text"]
+                            if clean_text and "🛍️ Для замовлень 🛍️" in clean_text:
+                                clean_text = clean_text.split("🛍️ Для замовлень 🛍️")[0].strip()
                                 
+                            current_profile = "my" if ch_id == CHANNEL_ID else "sis"
+                            settings = all_settings.get(current_profile, {})
+                            
+                            # Всеядная зачистка чужих «хвостов»
+                            if clean_text:
+                                clean_text = re.sub(r'📲?\s*(?:для зв\'язку|контакт|зв\'язок)?\s*:\s*@\w+', '', clean_text, flags=re.IGNORECASE)
+                                clean_text = re.sub(r'(?:бандлер|замовлення|сайт)?\s*https?://[^\s]+', '', clean_text, flags=re.IGNORECASE).strip()
+                                
+                            msg_text = clean_and_convert_text(clean_text, current_profile) if clean_text else ""
+                            
+                            # Проверяем тумблер подписи из вашей новой админ-панели!
+                            if msg_text and settings.get("use_signature", True):
+                                if ch_id == CHANNEL_ID:
+                                    signature = (
+                                        "\n\n🛍️ Для замовлень 🛍️\n"
+                                        '<a href="https://brandmenu.bunddler.com">🛍™️𝐵𝓇𝒶𝓃𝒹𝑀𝑒𝓃𝓊🤩🌏</a>\n'
+                                        "📲для зв'язку: @LankaMurrr"
+                                    )
+                                else:
+                                    signature = (
+                                        "\n\n🛍️ Для замовлень 🛍️\n"
+                                        '<a href="https://nataliche16.bunddler.com">💖ШОПІНГ В США 🇺🇸ТА ЄВРОПІ🇪🇺💖</a>\n'
+                                        "📲для зв'язку: @nata_c_he"
+                                    )
+                                final_text = f"{msg_text}{signature}"
+                            else:
+                                final_text = msg_text or ""
+                                
+                            time.sleep(3.5)
+                            
+                            if queue_item["type"] == "album":
+                                media_group = []
+                                for index, media_item in enumerate(queue_item["file_id"]):
+                                    caption = final_text if index == 0 else None
+                                    if media_item["type"] == 'photo':
+                                        media_group.append(types.InputMediaPhoto(media_item["file_id"], caption=caption, parse_mode="HTML"))
+                                    elif media_item["type"] == 'video':
+                                        media_group.append(types.InputMediaVideo(media_item["file_id"], caption=caption, parse_mode="HTML"))
+                                try: bot.send_media_group(chat_id=ch_id, media=media_group)
+                                except Exception as e: print(f"[-] Ошибка отложенного альбома: {e}")
+                            elif queue_item["type"] == 'text':
+                                try: bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
+                                except Exception as e: print(f"[-] Ошибка отложенного текста: {e}")
+                            elif queue_item["type"] == 'photo':
+                                try:
+                                    if len(final_text) <= 1024:
+                                        bot.send_photo(chat_id=ch_id, photo=queue_item["file_id"], caption=final_text, parse_mode="HTML")
+                                    else:
+                                        bot.send_photo(chat_id=ch_id, photo=queue_item["file_id"])
+                                        bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
+                                except Exception as e: print(f"[-] Ошибка отложенного фото: {e}")
+                            elif queue_item["type"] == 'video':
+                                try:
+                                    if len(final_text) <= 1024:
+                                        bot.send_video(chat_id=ch_id, video=queue_item["file_id"], caption=final_text, parse_mode="HTML")
+                                    else:
+                                        bot.send_video(chat_id=ch_id, video=queue_item["file_id"])
+                                        bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
+                                except Exception as e: print(f"[-] Ошибка отложенного видео: {e}")
+                                
+                        # После успешной публикации чистим архив
                         for d_id in ids_to_delete:
                             try: bot.delete_message(chat_id=ARCHIVE_CHANNEL_ID, message_id=d_id)
                             except: pass
-                        time.sleep(60)
                         continue
-                    else:
-                        for ch_id in target_channels:
-                            try:
-                                if queue_item["type"] == 'photo':
-                                    bot.send_photo(chat_id=ch_id, photo=queue_item["file_id"], caption=queue_item["raw_original_text"], parse_mode="HTML")
-                                elif queue_item["type"] == 'video':
-                                    bot.send_video(chat_id=ch_id, video=queue_item["file_id"], caption=queue_item["raw_original_text"], parse_mode="HTML")
-                                elif queue_item["type"] == 'text':
-                                    bot.send_message(chat_id=ch_id, text=queue_item["raw_original_text"], parse_mode="HTML", disable_web_page_preview=True)
-                            except Exception as e:
-                                print(f"[-] Ошибка отложенной отправки одиночного: {e}")
-                                
-                        try: bot.delete_message(chat_id=ARCHIVE_CHANNEL_ID, message_id=check_id)
-                        except: pass
-                        time.sleep(60)
-                        continue
+
                 except:
                     continue
 
