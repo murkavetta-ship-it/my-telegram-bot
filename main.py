@@ -542,4 +542,8 @@ if __name__ == "__main__":
     os.system(f"python -m http.server {port} &")
     
     print("[+] Бот успешно запущен на два раздельных профиля...")
+    
+    # ПРИНУДИТЕЛЬНЫЙ СБРОС ЗАВИСШИХ СОЕДИНЕНИЙ ТЕЛЕГРАМА
+    bot.remove_webhook()
+    
     bot.infinity_polling(timeout=10, long_polling_timeout=5)
