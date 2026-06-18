@@ -308,7 +308,7 @@ def handle_callbacks(call):
                         bot.send_video(chat_id=ch_id, video=file_id, caption=final_text if final_text else None, parse_mode="HTML")
                 
                 success_count += 1
-                time.sleep(2.0)  # Плавный интервал от флуда
+                time.sleep(3.5)  # Плавный интервал от флуда
                 
             USER_BUFFERS[user_id] = []  # Чистим буфер
             bot.send_message(user_id, f"✅ Успешно выгружено **{success_count}** постов строго по вашему порядку!")
