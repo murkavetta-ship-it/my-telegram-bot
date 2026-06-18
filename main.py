@@ -520,7 +520,8 @@ def execute_instant_publication(queue, target_channels, user_id):
 
 @bot.message_handler(content_types=['text', 'photo', 'video'])
 def handle_message(message):
-    text = message.text or message.caption or ""
+    # Железно вытаскиваем текст из любого типа сообщения
+    text = message.text if message.text else (message.caption if message.caption else "")
     user_id = message.chat.id
 
     if user_id not in USER_BUFFERS: USER_BUFFERS[user_id] = []
