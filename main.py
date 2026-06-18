@@ -520,83 +520,93 @@ def execute_instant_publication(queue, target_channels, user_id):
 
 @bot.message_handler(content_types=['text', 'photo', 'video'])
 def handle_message(message):
-    # Железно вытаскиваем текст из любого типа сообщения
-    text = message.text if message.text else (message.caption if message.caption else "")
-    user_id = message.chat.id
-
-    if user_id not in USER_BUFFERS:
-        USER_BUFFERS[user_id] = []
+    try:
+        user_id = message.chat.id
+        text = message.text if message.text else (message.caption if message.caption else "")
         
-    if text.startswith('/'): return
-
-    # Проверка команды на запуск публикации серий
-    if text.strip().lower() in ["давай", "давай ", "готово", "пуск"]:
-        queue_len = len(USER_BUFFERS[user_id])
-        if queue_len == 0:
-            bot.send_message(user_id, "📥 Корзина пуста. Сначала накидайте постов!")
+        # СТОПРОЦЕНТНАЯ ЗАЩИТА: Железно создаем пустую корзину для пользователя, если её нет
+        if user_id not in USER_BUFFERS:
+            USER_BUFFERS[user_id] = []
+            
+        if text.startswith('/'): 
             return
-            
-        markup = types.InlineKeyboardMarkup(row_width=1)
-        btn_now = types.InlineKeyboardButton("🚀 Прямо сейчас", callback_data="time_now")
-        btn_30m = types.InlineKeyboardButton("⏱️ Через 30 минут", callback_data="time_30m")
-        btn_exact = types.InlineKeyboardButton("⏰ Задать точное время", callback_data="time_exact")
-        markup.add(btn_now, btn_30m, btn_exact)
-        
-        bot.send_message(user_id, f"📥 Собрано **{queue_len}** постов. Порядок зафиксирован!\n\nКогда выгружаем эту серию анонсов?", reply_markup=markup)
-        return
 
-    current_position = len(USER_BUFFERS[user_id]) + 1
-    file_id = None
-    if message.content_type == 'photo': file_id = message.photo[-1].file_id
-    elif message.content_type == 'video': file_id = message.video.file_id
-
-    def save_collected_album(mg_id, u_id, chat_id):
-        pieces = ALBUM_BUFFERS.pop(mg_id, [])
-        if not pieces: return
-        pieces.sort(key=lambda x: x['msg_id'])
-        
-        combined_text = ""
-        for p in pieces:
-            if p['txt']:
-                combined_text = p['txt']
-                break
+        # Проверка слова-команды на выгрузку всей серии
+        if text.strip().lower() in ["давай", "давай ", "готово", "пуск"]:
+            queue_len = len(USER_BUFFERS[user_id])
+            if queue_len == 0:
+                bot.send_message(user_id, "📥 Корзина пуста. Сначала накидайте постов!")
+                return
                 
-        media_list = [{"type": p["type"], "file_id": p["file_id"]} for p in pieces]
-        pos = len(USER_BUFFERS[u_id]) + 1
-        
-        USER_BUFFERS[u_id].append({
-            "type": "album",
-            "file_id": media_list,
-            "raw_original_text": combined_text,
-            "position": pos
-        })
-        bot.send_message(chat_id, f"📥 Альбом (из {len(pieces)} медиа) успешно добавлен в серию под номером {pos}. Когда закончите, напишите слово **Давай**")
-
-    # Склеиваем альбомы или добавляем одиночные посты БЕЗ оглядки на то, откуда они пересланы!
-    if message.media_group_id:
-        mg_id = message.media_group_id
-        if mg_id not in ALBUM_BUFFERS:
-            ALBUM_BUFFERS[mg_id] = []
-            threading.Timer(1.5, save_collected_album, args=[mg_id, user_id, message.chat.id]).start()
+            markup = types.InlineKeyboardMarkup(row_width=1)
+            btn_now = types.InlineKeyboardButton("🚀 Прямо сейчас", callback_data="time_now")
+            btn_30m = types.InlineKeyboardButton("⏱️ Через 30 минут", callback_data="time_30m")
+            btn_exact = types.InlineKeyboardButton("⏰ Задать точное время", callback_data="time_exact")
+            markup.add(btn_now, btn_30m, btn_exact)
             
-        ALBUM_BUFFERS[mg_id].append({
-            "msg_id": message.message_id,
-            "type": message.content_type,
-            "file_id": file_id,
-            "txt": text
-        })
-    else:
-        try:
-            pos = len(USER_BUFFERS[user_id]) + 1
+            bot.send_message(user_id, f"📥 Собрано **{queue_len}** постов. Порядок зафиксирован!\n\nКогда выгружаем эту серию анонсов?", reply_markup=markup)
+            return
+
+        current_position = len(USER_BUFFERS[user_id]) + 1
+        file_id = None
+        if message.content_type == 'photo': 
+            file_id = message.photo[-1].file_id
+        elif message.content_type == 'video': 
+            file_id = message.video.file_id
+
+        def save_collected_album(mg_id, u_id, chat_id):
+            try:
+                pieces = ALBUM_BUFFERS.pop(mg_id, [])
+                if not pieces: 
+                    return
+                pieces.sort(key=lambda x: x['msg_id'])
+                
+                combined_text = ""
+                for p in pieces:
+                    if p['txt']:
+                        combined_text = p['txt']
+                        break
+                        
+                media_list = [{"type": p["type"], "file_id": p["file_id"]} for p in pieces]
+                
+                if u_id not in USER_BUFFERS:
+                    USER_BUFFERS[u_id] = []
+                pos = len(USER_BUFFERS[u_id]) + 1
+                
+                USER_BUFFERS[u_id].append({
+                    "type": "album",
+                    "file_id": media_list,
+                    "raw_original_text": combined_text,
+                    "position": pos
+                })
+                bot.send_message(chat_id, f"📥 Альбом (из {len(pieces)} медиа) успешно добавлен в серию под номером {pos}. Когда закончите, напишите слово **Давай**")
+            except Exception as album_err:
+                bot.send_message(chat_id, f"❌ Ошибка внутри сборщика альбома: {album_err}")
+
+        # Обработка альбомов и одиночных постов
+        if message.media_group_id:
+            mg_id = message.media_group_id
+            if mg_id not in ALBUM_BUFFERS:
+                ALBUM_BUFFERS[mg_id] = []
+                threading.Timer(1.5, save_collected_album, args=[mg_id, user_id, message.chat.id]).start()
+                
+            ALBUM_BUFFERS[mg_id].append({
+                "msg_id": message.message_id,
+                "type": message.content_type,
+                "file_id": file_id,
+                "txt": text
+            })
+        else:
             USER_BUFFERS[user_id].append({
                 "type": message.content_type,
                 "file_id": file_id,
                 "raw_original_text": text,
-                "position": pos
+                "position": current_position
             })
-            bot.reply_to(message, f"📥 Пост {pos} успешно добавлен в серию. Когда закончите, напишите слово **Давай**")
-        except Exception as e:
-            bot.send_message(user_id, f"❌ Ошибка корзины: {e}")
+            bot.reply_to(message, f"📥 Пост {current_position} успешно добавлен в серию. Когда закончите, напишите слово **Давай**")
+            
+    except Exception as general_err:
+        bot.send_message(message.chat.id, f"❌ Критическая ошибка хэндлера: {general_err}")
 
 if __name__ == "__main__":
     scheduler_thread = threading.Thread(target=morning_scheduler, daemon=True)
