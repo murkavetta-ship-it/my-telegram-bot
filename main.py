@@ -64,7 +64,7 @@ DEFAULT_CAPTIONS = [
 ]
 
 def morning_scheduler():
-    """Функция автоматической отправки утреннего поста из архива строго в 09:50 по Киеву"""
+    """Функция автоматической отправки утреннего поста строго в 10:00 по Киеву со случайным выбором и автоудалением"""
     import pytz
     kiev_tz = pytz.timezone("Europe/Kyiv")
     already_sent = False
@@ -73,31 +73,52 @@ def morning_scheduler():
         now = datetime.now(kiev_tz)
         current_time = now.strftime("%H:%M")
         
-        if current_time == "09:50" and not already_sent:
-            try:
-                # Генерируем случайный номер сообщения в вашем архиве
-                # (Обычно посты в каналах имеют ID от 1 до нескольких тысяч)
-                random_msg_id = random.randint(2, 100) 
-                
+        if current_time == "10:00" and not already_sent:
+            published = False
+            live_msg_ids = []
+            
+            # Шаг 1. Находим ID всех существующих постов в архиве (проверяем диапазон до 400 сообщений)
+            for msg_id in range(1, 400):
                 try:
-                    # Бот берет случайный пост из архива и пересылает его в главный канал
-                    # В метод копирования мы передаем вашу случайную утреннюю подпись!
+                    # Пробуем безопасно переслать в лог-канал для проверки "живой" ли пост
+                    bot.forward_message(chat_id=CHANNEL_ID, from_chat_id=ARCHIVE_CHANNEL_ID, message_id=msg_id)
+                    live_msg_ids.append(msg_id)
+                except:
+                    continue
+            
+            # Шаг 2. Если живые посты найдены, выбираем один случайный ID
+            if live_msg_ids:
+                random_id = random.choice(live_msg_ids)
+                try:
                     caption_text = random.choice(DEFAULT_CAPTIONS)
+                    
+                    # Копируем эту случайную картинку/видео в главный канал с утренним текстом
                     bot.copy_message(
                         chat_id=CHANNEL_ID,
                         from_chat_id=ARCHIVE_CHANNEL_ID,
-                        message_id=random_msg_id,
+                        message_id=random_id,
                         caption=caption_text
                     )
-                except Exception as forward_error:
-                    # Если этот ID поста оказался пустым или удаленным, бот подстрахуется текстом
-                    print(f"[-] Не удалось скопировать пост {random_msg_id}: {forward_error}")
+                    
+                    # Сразу после успеха САМ удаляет её из архива, чтобы она больше не выпадала
+                    try:
+                        bot.delete_message(chat_id=ARCHIVE_CHANNEL_ID, message_id=random_id)
+                    except:
+                        pass
+                        
+                    published = True
+                except Exception as e:
+                    print(f"[-] Ошибка отправки случайного поста {random_id}: {e}")
+            
+            # Резервный вариант: если архив совсем пуст, гарантированно шлем текст
+            if not published:
+                try:
                     bot.send_message(chat_id=CHANNEL_ID, text=random.choice(DEFAULT_CAPTIONS))
-                
-                already_sent = True
-            except Exception as e:
-                print(f"[-] Ошибка утреннего поста: {e}")
-        elif current_time != "09:50":
+                except:
+                    pass
+                    
+            already_sent = True
+        elif current_time != "10:00":
             already_sent = False
         time.sleep(30)
 
