@@ -445,33 +445,6 @@ def handle_message(message):
         elif message.content_type == 'video': 
             file_id = message.video.file_id  # ТЕПЕРЬ ОШИБКИ НЕТ!
 
-        def save_collected_album(mg_id, u_id, chat_id):
-            try:
-                pieces = ALBUM_BUFFERS.pop(mg_id, [])
-                if not pieces: return
-                pieces.sort(key=lambda x: x['msg_id'])
-                
-                combined_text = ""
-                for p in pieces:
-                    if p['txt']:
-                        combined_text = p['txt']
-                        break
-                        
-                media_list = [{"type": p["type"], "file_id": p["file_id"]} for p in pieces]
-                
-                if u_id not in USER_BUFFERS: USER_BUFFERS[u_id] = []
-                pos = len(USER_BUFFERS[u_id]) + 1
-                
-                USER_BUFFERS[u_id].append({
-                    "type": "album",
-                    "file_id": media_list,
-                    "raw_original_text": combined_text,
-                    "position": pos
-                })
-                bot.send_message(chat_id, f"📥 Альбом (из {len(pieces)} медиа) успешно добавлен в серию под номером {pos}. Когда закончите, напишите слово **Давай**")
-            except Exception as album_err:
-                bot.send_message(chat_id, f"❌ Ошибка внутри сборщика альбома: {album_err}")
-
         # Склеиваем альбомы или отправляем одиночные файлы
         if message.media_group_id:
             mg_id = message.media_group_id
