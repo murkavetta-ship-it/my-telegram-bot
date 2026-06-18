@@ -291,7 +291,7 @@ def handle_callbacks(call):
         elif call.data == "pub_sis": target_channels = [CHANNEL_ID_SISTER]
         elif call.data == "pub_both": target_channels = [CHANNEL_ID, CHANNEL_ID_SISTER]
         
-        bot.edit_message_text(f"⏳ Публикую массив из **{len(queue)}** постов в строго полученном порядке...", chat_id=user_id, message_id=call.message.message_id)
+        bot.edit_message_text(f"⏳ Публикую массив из **{len(queue)}** постов in строго полученном порядке...", chat_id=user_id, message_id=call.message.message_id)
         queue.sort(key=lambda x: x["position"])
         
         success_count = 0
@@ -301,40 +301,39 @@ def handle_callbacks(call):
                 file_id = item["file_id"]
                 raw_text = item["raw_original_text"]
                 
-        for ch_id in target_channels:
-            # Умная зачистка старых подписей и контактов перед пересчетом
-            clean_raw_text = raw_text
-            if clean_raw_text:
-                # 1. Если есть ваш фирменный маркер, жестко отрезаем всё после него
-                if "🛍️ Для замовлень 🛍️" in clean_raw_text:
-                    clean_raw_text = clean_raw_text.split("🛍️ Для замовлень 🛍️").strip()
-                
-                # 2. Ищем любые чужие юзернеймы телеграма (например, @username) в конце текста и стираем их
-                clean_raw_text = re.sub(r'📲?\s*(?:для зв\'язку|контакт|зв\'язок)?\s*:\s*@\w+', '', clean_raw_text, flags=re.IGNORECASE)
-                
-                # 3. Находим любые чужие ссылки на бандлер или другие сайты и удаляем их строки целиком
-                clean_raw_text = re.sub(r'(?:бандлер|замовлення|сайт)?\s*https?://[^\s]+', '', clean_raw_text, flags=re.IGNORECASE)
-                
-                # Убираем лишние пробелы и переносы строк, которые могли остаться после удаления
-                clean_raw_text = clean_raw_text.strip()
-
-                current_profile = "my" if ch_id == CHANNEL_ID else "sis"
-                msg_text = clean_and_convert_text(clean_raw_text, current_profile) if clean_raw_text else ""
-                
-                if msg_text:
-                    if ch_id == CHANNEL_ID:
-                        signature = (
-                            "\n\n🛍️ Для замовлень 🛍️\n"
-                            '<a href="https://brandmenu.bunddler.com">🛍™️𝐵𝓇𝒶𝓃𝒹𝑀𝑒𝓃𝓊🤩🌏</a>\n'
-                            "📲для зв'язку: @LankaMurrr"
-                        )
-                    else:
-                        signature = (
-                            "\n\n🛍️ Для замовлень 🛍️\n"
-                            '<a href="https://nataliche16.bunddler.com">💖ШОПІНГ В США 🇺🇸ТА ЄВРОПІ🇪🇺💖</a>\n'
-                            "📲для зв'язку: @nata_c_he"
-                        )
-
+                for ch_id in target_channels:
+                    # Умная зачистка старых подписей и контактов перед пересчетом
+                    clean_raw_text = raw_text
+                    if clean_raw_text:
+                        # 1. Если есть ваш фирменный маркер, жестко отрезаем всё после него
+                        if "🛍️ Для замовлень 🛍️" in clean_raw_text:
+                            clean_raw_text = clean_raw_text.split("🛍️ Для замовлень 🛍️")[0].strip()
+                        
+                        # 2. Ищем любые чужие юзернеймы телеграма (например, @username) в конце текста и стираем их
+                        clean_raw_text = re.sub(r'📲?\s*(?:для зв\'язку|контакт|зв\'язок)?\s*:\s*@\w+', '', clean_raw_text, flags=re.IGNORECASE)
+                        
+                        # 3. Находим любые чужие ссылки на бандлер или другие сайты и удаляем их строки целиком
+                        clean_raw_text = re.sub(r'(?:бандлер|замовлення|сайт)?\s*https?://[^\s]+', '', clean_raw_text, flags=re.IGNORECASE)
+                        
+                        # Убираем лишние пробелы и переносы строк, которые могли остаться после удаления
+                        clean_raw_text = clean_raw_text.strip()
+                            
+                    current_profile = "my" if ch_id == CHANNEL_ID else "sis"
+                    msg_text = clean_and_convert_text(clean_raw_text, current_profile) if clean_raw_text else ""
+                    
+                    if msg_text:
+                        if ch_id == CHANNEL_ID:
+                            signature = (
+                                "\n\n🛍️ Для замовлень 🛍️\n"
+                                '<a href="https://brandmenu.bunddler.com">🛍™️𝐵𝓇𝒶𝓃𝒹𝑀𝑒𝓃𝓊🤩🌏</a>\n'
+                                "📲для зв'язку: @LankaMurrr"
+                            )
+                        else:
+                            signature = (
+                                "\n\n🛍️ Для замовлень 🛍️\n"
+                                '<a href="https://nataliche16.bunddler.com">💖ШОПІНГ В США 🇺🇸ТА ЄВРОПІ🇪🇺💖</a>\n'
+                                "📲для зв'язку: @nata_c_he"
+                            )
                         final_text = f"{msg_text}{signature}"
                     else:
                         final_text = ""
@@ -372,7 +371,6 @@ def handle_callbacks(call):
         except Exception as e:
             bot.send_message(user_id, f"❌ Ошибка отправки на {success_count}-м посте: {e}")
         return
-
     if any(call.data.startswith(x) for x in ["set_usd_", "set_eur_", "set_gbp_", "set_com_", "set_disc_"]):
         action = call.data.split("_")
         prompt_texts = {
