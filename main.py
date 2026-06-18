@@ -524,9 +524,12 @@ def handle_message(message):
     text = message.text if message.text else (message.caption if message.caption else "")
     user_id = message.chat.id
 
-    if user_id not in USER_BUFFERS: USER_BUFFERS[user_id] = []
+    if user_id not in USER_BUFFERS:
+        USER_BUFFERS[user_id] = []
+        
     if text.startswith('/'): return
 
+    # Проверка команды на запуск публикации серий
     if text.strip().lower() in ["давай", "давай ", "готово", "пуск"]:
         queue_len = len(USER_BUFFERS[user_id])
         if queue_len == 0:
@@ -569,6 +572,7 @@ def handle_message(message):
         })
         bot.send_message(chat_id, f"📥 Альбом (из {len(pieces)} медиа) успешно добавлен в серию под номером {pos}. Когда закончите, напишите слово **Давай**")
 
+    # Склеиваем альбомы или добавляем одиночные посты БЕЗ оглядки на то, откуда они пересланы!
     if message.media_group_id:
         mg_id = message.media_group_id
         if mg_id not in ALBUM_BUFFERS:
