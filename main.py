@@ -270,8 +270,8 @@ def handle_callbacks(call):
         
         bot.edit_message_text(f"⏳ Публикую массив из **{len(queue)}** постов в строгом порядке получения...", chat_id=user_id, message_id=call.message.message_id)
         
-        # Сортируем посты строго по внутреннему времени Telegram, чтобы сохранить хронологию
-        queue.sort(key=lambda x: x["timestamp"])
+        # Сортируем посты СТРОГО по порядковому номеру захода в бот, а не по времени
+        queue.sort(key=lambda x: x["position"])
         
         success_count = 0
         try:
@@ -311,10 +311,10 @@ def handle_callbacks(call):
                         bot.send_video(chat_id=ch_id, video=file_id, caption=final_text if final_text else None, parse_mode="HTML")
                 
                 success_count += 1
-                time.sleep(1.5)  # Плавная задержка от флуда
+                time.sleep(2.0)  # Безопасный интервал для плавности ленты в канале
                 
             USER_BUFFERS[user_id] = []  # Чистим буфер
-            bot.send_message(user_id, f"✅ Идеально! Все **{success_count}** постов выгружены строго по порядку хронологии.")
+            bot.send_message(user_id, f"✅ Идеально! Все **{success_count}** постов выгружены строго по вашему порядку.")
         except Exception as e:
             bot.send_message(user_id, f"❌ Ошибка отправки на {success_count}-м посте: {e}")
 
@@ -362,6 +362,9 @@ def handle_message(message):
         bot.send_message(user_id, f"📦 Собрано **{queue_len}** постов. Все чистые фото приняты, порядок зафиксирован!\nКуда отправляем этот массив?", reply_markup=markup)
         return
 
+    # Определяем СТРОГИЙ порядковый номер сообщения в буфере на основе текущей длины списка
+    current_position = len(USER_BUFFERS[user_id]) + 1
+
     # Пересчитываем цены для текущего анонса
     new_text = clean_and_convert_text(text) if text else ""
     
@@ -369,24 +372,13 @@ def handle_message(message):
     if message.content_type == 'photo': file_id = message.photo[-1].file_id
     elif message.content_type == 'video': file_id = message.video.file_id
     
-    # Сохраняем пост в корзину вместе с точным временем отправки (message.date)
+    # Сохраняем пост в корзину вместе с его ЖЕСТКИМ номером позиции (position)
     USER_BUFFERS[user_id].append({
         "type": message.content_type,
         "file_id": file_id,
         "text": new_text,
-        "timestamp": message.date  # 🔥 Это гарантирует идеальную сортировку по порядку!
+        "position": current_position  # 🔥 Фиксируем строгий порядок прихода!
     })
     
     # Легкое подтверждение, чтобы вы видели, что бот взял пост
-    bot.reply_to(message, f"📥 Пост {len(USER_BUFFERS[user_id])} принят. Напишите **Давай** для отправки пачки.")
-
-if __name__ == "__main__":
-    scheduler_thread = threading.Thread(target=morning_scheduler, daemon=True)
-    scheduler_thread.start()
-    
-    import os
-    port = int(os.environ.get("PORT", 10000))
-    os.system(f"python -m http.server {port} &")
-    
-    print("[+] Бот успешно запущен...")
-    bot.infinity_polling(timeout=10, long_polling_timeout=5)
+    bot.reply_to(message, f"📥 Пост {current_position} принят.")
