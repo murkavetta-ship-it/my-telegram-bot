@@ -64,12 +64,18 @@ DEFAULT_CAPTIONS = [
 ]
 
 def morning_scheduler():
-    """Функция автоматической отправки утреннего поста из архива"""
+    """Функция автоматической отправки утреннего поста из архива строго в 09:00 по Киеву"""
+    import pytz  # Подключаем работу с часовыми поясами
+    kiev_tz = pytz.timezone("Europe/Kyiv")
     already_sent = False
+    
     while True:
-        now = datetime.now()
+        # Берем точное время в Украине, а не на сервере в Америке
+        now = datetime.now(kiev_tz)
         current_time = now.strftime("%H:%M")
-        if current_time == "05:00" and not already_sent:
+        
+        # Меняем время отправки на 08:00 утра по Киеву!
+        if current_time == "09:00" and not already_sent:
             try:
                 updates = bot.get_chat_history(chat_id=ARCHIVE_CHANNEL_ID, limit=50)
                 media_messages = [msg for msg in updates if msg.content_type in ['photo', 'video']]
@@ -80,12 +86,13 @@ def morning_scheduler():
                         bot.send_photo(chat_id=CHANNEL_ID, photo=random_msg.photo[-1].file_id, caption=caption_text)
                     elif random_msg.content_type == 'video':
                         bot.send_video(chat_id=CHANNEL_ID, video=random_msg.video.file_id, caption=caption_text)
+                already_sent = True
             except Exception as e:
                 print(f"[-] Ошибка утреннего поста: {e}")
-            already_sent = True
-        elif current_time != "05:00":
+        elif current_time != "09:00":
             already_sent = False
         time.sleep(30)
+
 def fetch_price_from_url(url):
     """Резервный парсер сайтов"""
     try:
