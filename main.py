@@ -274,10 +274,10 @@ def handle_callbacks(call):
                 msg_type = item["type"]
                 file_id = item["file_id"]
                 raw_text = item["raw_original_text"] # Берем чистый исходник
-                
-                # ДВУХСТОРОННЯЯ УМНАЯ ЗАЧИСТКА: отрезаем Бандлер сестры или ваш, если они уже есть в тексте
-                if raw_text and ("nataliche16" in raw_text or "brandmenu" in raw_text):
-                    raw_text = raw_text.split("🛍 Для замовлень 🛍")[0].strip()
+                # Умная зачистка ЧУЖОГО Бандлера с обязательным индексом
+                if raw_text and "🛍 Для замовлень 🛍" in raw_text:
+                    if (ch_id == CHANNEL_ID and "nataliche16" in raw_text) or (ch_id == CHANNEL_ID_SISTER and "brandmenu" in raw_text):
+                        raw_text = raw_text.split("🛍 Для замовлень 🛍")[0].strip()
                 
                 for ch_id in target_channels:
                     # Бот автоматически пересчитывает один и тот же пост по индивидуальным тарифам выбранного канала!
