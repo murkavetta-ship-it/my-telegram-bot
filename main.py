@@ -548,13 +548,16 @@ def handle_message(message):
         })
         bot.send_message(user_id, f"📥 Пост успешно добавлен в корзину! (Позиция №{current_position})")
 
-# Запуск фонового потока планировщика таймеров — СТРОГО ПЕРЕД bot.infinity_polling
-threading.Thread(target=morning_scheduler, daemon=True).start()
-
 if __name__ == "__main__":
-    print("[+] Бот успешно запущен на Render...")
-    try:
-        bot.delete_webhook(drop_pending_updates=True)
-    except:
-        pass
-    bot.infinity_polling(timeout=10, long_polling_timeout=5)
+    scheduler_thread = threading.Thread(target=morning_scheduler, daemon=True)
+    scheduler_thread.start()
+    
+    import os
+    port = int(os.environ.get("PORT", 10000))
+    os.system(f"python -m http.server {port} &")
+    
+    print("[+] Бот успешно запущен на два раздельных профиля...")
+    
+    # СТАБИЛЬНЫЙ РЕЖИМ ЗАПУСКА С АВТОПЕРЕЗАПУСКОМ ПРИ СБОЯХ
+    bot.remove_webhook()
+    bot.polling(none_stop=True, skip_pending=True, timeout=60)
