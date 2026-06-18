@@ -221,7 +221,7 @@ def show_settings_panel(message):
         reply_markup=get_settings_keyboard()
     )
 
-# Память для хранения очередей постов (чтобы посты не путались между вами и сестрой)
+# Умная память для сохранения идеального порядка постов
 USER_BUFFERS = {}
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -254,7 +254,7 @@ def handle_callbacks(call):
         msg = bot.send_message(call.message.chat.id, prompt_texts[call.data])
         bot.register_next_step_handler(msg, process_setting_input, call.data)
         
-    # --- ЛОГИКА МАССОВОЙ ПУБЛИКАЦИИ ИЗ ОЧЕРЕДИ ---
+    # --- ЛОГИКА МАССОВОЙ ПУБЛИКАЦИИ С ИДЕАЛЬНЫМ ПОРЯДКОМ И ЗАЩИТОЙ ---
     elif call.data in ["pub_my", "pub_sis", "pub_both"]:
         user_id = call.message.chat.id
         queue = USER_BUFFERS.get(user_id, [])
@@ -268,7 +268,10 @@ def handle_callbacks(call):
         elif call.data == "pub_sis": target_channels = [CHANNEL_ID_SISTER]
         elif call.data == "pub_both": target_channels = [CHANNEL_ID, CHANNEL_ID_SISTER]
         
-        bot.edit_message_text(f"⏳ Начинаю плавную отправку массива из **{len(queue)}** постов... Пожалуйста, подождите.", chat_id=user_id, message_id=call.message.message_id)
+        bot.edit_message_text(f"⏳ Публикую массив из **{len(queue)}** постов в строгом порядке получения...", chat_id=user_id, message_id=call.message.message_id)
+        
+        # Сортируем посты строго по внутреннему времени Telegram, чтобы сохранить хронологию
+        queue.sort(key=lambda x: x["timestamp"])
         
         success_count = 0
         try:
@@ -277,42 +280,43 @@ def handle_callbacks(call):
                 file_id = item["file_id"]
                 msg_text = item["text"]
                 
-                # Умная зачистка старых подписей при пересылке, чтобы они не накладывались
-                msg_text = re.split(r'🛍 Для замовлень 🛍', msg_text)[0].strip()
+                # Зачищаем старые подписи, если они были
+                if msg_text and "🛍 Для замовлень 🛍" in msg_text:
+                    msg_text = msg_text.split("🛍 Для замовлень 🛍")[0].strip()
                 
                 for ch_id in target_channels:
-                    # Подставляем контакты в зависимости от канала назначения
-                    if ch_id == CHANNEL_ID:
-                        signature = (
-                            "\n\n🛍 Для замовлень 🛍\n"
-                            "бандлер https://bunddler.com\n"
-                            "📲для зв'язку: @LankaMurrr"
-                        )
+                    # Подставляем нужные контакты. К пустым фото подписи прикрепляться не будут!
+                    if msg_text:
+                        if ch_id == CHANNEL_ID:
+                            signature = (
+                                "\n\n🛍 Для замовлень 🛍\n"
+                                "бандлер https://bunddler.com\n"
+                                "📲для зв'язку: @LankaMurrr"
+                            )
+                        else:
+                            signature = (
+                                "\n\n🛍 Для замовлень 🛍\n"
+                                "бандлер https://bunddler.com\n"
+                                "📲для зв'язку: @nata_c_he"
+                            )
+                        final_text = f"{msg_text}{signature}"
                     else:
-                        signature = (
-                            "\n\n🛍 Для замовлень 🛍\n"
-                            "бандлер https://bunddler.com\n"
-                            "📲для зв'язку: @nata_c_he"
-                        )
-                    
-                    final_text = f"{msg_text}{signature}"
+                        final_text = ""
                     
                     if msg_type == 'text':
                         bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
                     elif msg_type == 'photo':
-                        bot.send_photo(chat_id=ch_id, photo=file_id, caption=final_text, parse_mode="HTML")
+                        bot.send_photo(chat_id=ch_id, photo=file_id, caption=final_text if final_text else None, parse_mode="HTML")
                     elif msg_type == 'video':
-                        bot.send_video(chat_id=ch_id, video=file_id, caption=final_text, parse_mode="HTML")
+                        bot.send_video(chat_id=ch_id, video=file_id, caption=final_text if final_text else None, parse_mode="HTML")
                 
                 success_count += 1
-                # Техническая пауза 2 секунды между постами для обхода Flood Control
-                time.sleep(2)
+                time.sleep(1.5)  # Плавная задержка от флуда
                 
-            # Очищаем корзину пользователя после успешной отправки
-            USER_BUFFERS[user_id] = []
-            bot.send_message(user_id, f"✅ Массив успешно опубликован! Все **{success_count}** постов разлетелись по каналам.")
+            USER_BUFFERS[user_id] = []  # Чистим буфер
+            bot.send_message(user_id, f"✅ Идеально! Все **{success_count}** постов выгружены строго по порядку хронологии.")
         except Exception as e:
-            bot.send_message(user_id, f"❌ Произошла ошибка на {success_count}-м посте: {e}. Проверьте права бота в каналах.")
+            bot.send_message(user_id, f"❌ Ошибка отправки на {success_count}-м посте: {e}")
 
 def process_setting_input(message, action):
     try:
@@ -326,26 +330,26 @@ def process_setting_input(message, action):
         elif action == "set_disc": settings["global_discount"] = int(val)
         
         save_settings(settings)
-        bot.send_message(message.chat.id, "✅ Настройки успешно обновлены и сохранены в память! Нажмите /settings чтобы увидеть новую панель.")
+        bot.send_message(message.chat.id, "✅ Настройки успешно обновлены! Нажмите /settings.")
     except:
-        bot.send_message(message.chat.id, "❌ Ошибка! Нужно ввести корректное число. Попробуйте снова через меню /settings.")
+        bot.send_message(message.chat.id, "❌ Число введено неверно.")
 
-# --- ХЕНДЛЕР СБОРНИКА ПОСТОВ В КОРЗИНУ ---
+# --- УМНЫЙ ХЕНДЛЕР СБОРА ПОСТОВ В КОРЗИНУ ---
 @bot.message_handler(content_types=['text', 'photo', 'video'])
 def handle_message(message):
     text = message.text or message.caption or ""
-    if not text: return
+    user_id = message.chat.id
+    
     if text.startswith('/'): return
     
-    user_id = message.chat.id
     if user_id not in USER_BUFFERS:
         USER_BUFFERS[user_id] = []
         
-    # Команда "Давай" запускает меню публикации всего массива
-    if text.strip().lower() in ["давай", "давай ", "готово"]:
+    # Команда-триггер для вывода кнопок публикации
+    if text.strip().lower() in ["давай", "давай ", "готово", "пуск"]:
         queue_len = len(USER_BUFFERS[user_id])
         if queue_len == 0:
-            bot.send_message(user_id, "🫙 Ваша корзина пуста. Сначала накидайте анонсов с ценами!")
+            bot.send_message(user_id, "🫙 Корзина пуста. Сначала накидайте постов!")
             return
             
         markup = types.InlineKeyboardMarkup(row_width=2)
@@ -355,25 +359,26 @@ def handle_message(message):
         markup.add(btn_my, btn_sis)
         markup.add(btn_both)
         
-        bot.send_message(user_id, f"📦 В корзине собрано **{queue_len}** пересчитанных анонсов.\nКуда отправляем этот массив?", reply_markup=markup)
+        bot.send_message(user_id, f"📦 Собрано **{queue_len}** постов. Все чистые фото приняты, порядок зафиксирован!\nКуда отправляем этот массив?", reply_markup=markup)
         return
 
     # Пересчитываем цены для текущего анонса
-    new_text = clean_and_convert_text(text)
+    new_text = clean_and_convert_text(text) if text else ""
     
     file_id = None
     if message.content_type == 'photo': file_id = message.photo[-1].file_id
     elif message.content_type == 'video': file_id = message.video.file_id
     
-    # Добавляем пост в буфер конкретного пользователя
+    # Сохраняем пост в корзину вместе с точным временем отправки (message.date)
     USER_BUFFERS[user_id].append({
         "type": message.content_type,
         "file_id": file_id,
-        "text": new_text
+        "text": new_text,
+        "timestamp": message.date  # 🔥 Это гарантирует идеальную сортировку по порядку!
     })
     
-    # Бот присылает короткую отметку, что пост успешно пересчитан и отложен
-    bot.reply_to(message, f"📥 Добавлен в массив (Всего: {len(USER_BUFFERS[user_id])}). Когда закончите, напишите слово **Давай**")
+    # Легкое подтверждение, чтобы вы видели, что бот взял пост
+    bot.reply_to(message, f"📥 Пост {len(USER_BUFFERS[user_id])} принят. Напишите **Давай** для отправки пачки.")
 
 if __name__ == "__main__":
     scheduler_thread = threading.Thread(target=morning_scheduler, daemon=True)
@@ -383,5 +388,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     os.system(f"python -m http.server {port} &")
     
-    print("[+] Бот успешно запущен и готов к работе...")
+    print("[+] Бот успешно запущен...")
     bot.infinity_polling(timeout=10, long_polling_timeout=5)
