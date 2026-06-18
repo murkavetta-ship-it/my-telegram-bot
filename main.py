@@ -64,7 +64,7 @@ DEFAULT_CAPTIONS = [
 ]
 
 def morning_scheduler():
-    """Функция автоматической отправки утреннего поста из архива строго в 09:40 по Киеву"""
+    """Функция автоматической отправки утреннего поста из архива строго в 09:50 по Киеву"""
     import pytz
     kiev_tz = pytz.timezone("Europe/Kyiv")
     already_sent = False
@@ -73,33 +73,31 @@ def morning_scheduler():
         now = datetime.now(kiev_tz)
         current_time = now.strftime("%H:%M")
         
-        if current_time == "09:40" and not already_sent:
+        if current_time == "09:50" and not already_sent:
             try:
-                # Пробуем безопасно получить историю, если библиотека или права позволяют
-                updates = None
+                # Генерируем случайный номер сообщения в вашем архиве
+                # (Обычно посты в каналах имеют ID от 1 до нескольких тысяч)
+                random_msg_id = random.randint(2, 100) 
+                
                 try:
-                    # В telebot нет прямого get_chat_history, используем безопасный обход ошибки
-                    pass
-                except:
-                    updates = None
-                
-                media_messages = [msg for msg in updates if msg.content_type in ['photo', 'video']] if updates else []
-                
-                if media_messages:
-                    random_msg = random.choice(media_messages)
-                    caption_text = random_msg.caption if random_msg.caption else random.choice(DEFAULT_CAPTIONS)
-                    if random_msg.content_type == 'photo':
-                        bot.send_photo(chat_id=CHANNEL_ID, photo=random_msg.photo[-1].file_id, caption=caption_text)
-                    elif random_msg.content_type == 'video':
-                        bot.send_video(chat_id=CHANNEL_ID, video=random_msg.video.file_id, caption=caption_text)
-                else:
-                    # БРОНЕБОЙНЫЙ РЕЗЕРВ: Если архив недоступен, бот гарантированно шлет красивый утренний текст!
+                    # Бот берет случайный пост из архива и пересылает его в главный канал
+                    # В метод копирования мы передаем вашу случайную утреннюю подпись!
+                    caption_text = random.choice(DEFAULT_CAPTIONS)
+                    bot.copy_message(
+                        chat_id=CHANNEL_ID,
+                        from_chat_id=ARCHIVE_CHANNEL_ID,
+                        message_id=random_msg_id,
+                        caption=caption_text
+                    )
+                except Exception as forward_error:
+                    # Если этот ID поста оказался пустым или удаленным, бот подстрахуется текстом
+                    print(f"[-] Не удалось скопировать пост {random_msg_id}: {forward_error}")
                     bot.send_message(chat_id=CHANNEL_ID, text=random.choice(DEFAULT_CAPTIONS))
-                    
+                
                 already_sent = True
             except Exception as e:
                 print(f"[-] Ошибка утреннего поста: {e}")
-        elif current_time != "09:40":
+        elif current_time != "09:50":
             already_sent = False
         time.sleep(30)
 
@@ -206,7 +204,7 @@ def get_settings_keyboard():
 @bot.message_handler(commands=['start', 'settings'])
 def show_settings_panel(message):
     bot.send_message(
-        message.chat.id,  # ТУТ ИСПРАВЛЕНО (было message.chat_id)
+        message.chat.id, 
         "Привет, Богиня! 👑 Добро пожаловать в панель управления тарифами.\n\n"
         "Нажимайте на кнопки ниже, чтобы мгновенно изменить курсы, общую наценку или активировать глобальную скидку на сегодня. Посты, пересланные без команд, будут сразу пересчитываться по этим тарифам!", 
         reply_markup=get_settings_keyboard()
@@ -241,6 +239,31 @@ def handle_callbacks(call):
         }
         msg = bot.send_message(call.message.chat.id, prompt_texts[call.data])
         bot.register_next_step_handler(msg, process_setting_input, call.data)
+        
+    # --- ЛОГИКА КНОПОК ОТПРАВКИ В КАНАЛЫ (ДЛЯ ВАС И СЕСТРЫ) ---
+    elif call.data in ["pub_my", "pub_sis", "pub_both"]:
+        msg_text = call.message.text or call.message.caption or ""
+        if "Предпросмотр анонса:" in msg_text:
+            msg_text = msg_text.replace("📝 Предпросмотр анонса:\n\n", "")
+            
+        target_channels = []
+        if call.data == "pub_my": target_channels = [CHANNEL_ID]
+        elif call.data == "pub_sis": target_channels = [CHANNEL_ID_SISTER]
+        elif call.data == "pub_both": target_channels = [CHANNEL_ID, CHANNEL_ID_SISTER]
+        
+        try:
+            for ch_id in target_channels:
+                if call.message.content_type == 'text':
+                    bot.send_message(chat_id=ch_id, text=msg_text, parse_mode="HTML", disable_web_page_preview=True)
+                elif call.message.content_type == 'photo':
+                    bot.send_photo(chat_id=ch_id, photo=call.message.photo[-1].file_id, caption=msg_text, parse_mode="HTML")
+                elif call.message.content_type == 'video':
+                    bot.send_video(chat_id=ch_id, video=call.message.video.file_id, caption=msg_text, parse_mode="HTML")
+            
+            bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=None)
+            bot.send_message(call.message.chat.id, "🚀 Пост успешно опубликован в выбранные каналы!")
+        except Exception as e:
+            bot.send_message(call.message.chat.id, f"❌ Ошибка публикации: {e}. Убедитесь, что бот добавлен в админы каналов.")
 
 def process_setting_input(message, action):
     try:
@@ -258,27 +281,31 @@ def process_setting_input(message, action):
     except:
         bot.send_message(message.chat.id, "❌ Ошибка! Нужно ввести корректное число. Попробуйте снова через меню /settings.")
 
-# --- ХЕНДЛЕР ПЕРЕСЫЛКИ АНОНСОВ ---
+# --- ХЕНДЛЕР ПРИЕМА АНОНСОВ ДЛЯ ПРЕДПРОСМОТРА ---
 @bot.message_handler(content_types=['text', 'photo', 'video'])
 def handle_message(message):
     text = message.text or message.caption or ""
     if not text: return
-    
-    # Если это текстовая команда настройки, игнорируем пересчет поста
     if text.startswith('/'): return
     
     new_text = clean_and_convert_text(text)
+    
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    btn_my = types.InlineKeyboardButton("🛍️ В мой канал", callback_data="pub_my")
+    btn_sis = types.InlineKeyboardButton("👭 В канал сестры", callback_data="pub_sis")
+    btn_both = types.InlineKeyboardButton("🌍 В оба канала", callback_data="pub_both")
+    markup.add(btn_my, btn_sis)
+    markup.add(btn_both)
+    
     try:
         if message.content_type == 'text':
-            bot.send_message(chat_id=CHANNEL_ID, text=new_text, parse_mode="HTML", disable_web_page_preview=True)
+            bot.send_message(message.chat.id, f"📝 **Предпросмотр анонса:**\n\n{new_text}", parse_mode="HTML", reply_markup=markup, disable_web_page_preview=True)
         elif message.content_type == 'photo':
-            bot.send_photo(chat_id=CHANNEL_ID, photo=message.photo[-1].file_id, caption=new_text, parse_mode="HTML")
+            bot.send_photo(message.chat.id, photo=message.photo[-1].file_id, caption=new_text, parse_mode="HTML", reply_markup=markup)
         elif message.content_type == 'video':
-            bot.send_video(chat_id=CHANNEL_ID, video=message.video.file_id, caption=new_text, parse_mode="HTML")
-            
-        bot.reply_to(message, "Готово, Богиня! Пост пересчитан по актуальным тарифам из меню настроек! 🔥")
+            bot.send_video(message.chat.id, video=message.video.file_id, caption=new_text, parse_mode="HTML", reply_markup=markup)
     except Exception as e:
-        bot.reply_to(message, f"Ошибка отправки: {e}")
+        bot.reply_to(message, f"Ошибка предпросмотра: {e}")
 
 if __name__ == "__main__":
     scheduler_thread = threading.Thread(target=morning_scheduler, daemon=True)
