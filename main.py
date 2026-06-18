@@ -373,22 +373,22 @@ def execute_instant_publication(queue, target_channels, user_id):
                         media_group.append(types.InputMediaVideo(media_item["file_id"], caption=caption, parse_mode="HTML"))
                 try: bot.send_media_group(chat_id=ch_id, media=media_group)
                 except: pass
-            elif msg_type == 'photo':
-                try:
-                    if len(final_text) <= 1024:
-                        bot.send_photo(chat_id=ch_id, photo=file_id, caption=final_text, parse_mode="HTML")
-                    else:
-                        bot.send_photo(chat_id=ch_id, photo=file_id)
-                        bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
-                except: pass
-            elif msg_type == 'video':
-                try:
-                    if len(final_text) <= 1024:
-                        bot.send_video(chat_id=ch_id, video=file_id, caption=final_text, parse_mode="HTML")
-                    else:
-                        bot.send_video(chat_id=ch_id, video=file_id)
-                        bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
-                except: pass
+        elif msg_type == 'photo':
+            try:
+                if len(final_text) <= 1024:
+                    bot.send_photo(chat_id=ch_id, photo=file_id, caption=final_text, parse_mode="HTML")
+                else:
+                    bot.send_photo(chat_id=ch_id, photo=file_id)
+                    bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
+            except: pass
+        elif msg_type == 'video':
+            try:
+                if len(final_text) <= 1024:
+                    bot.send_video(chat_id=ch_id, video=file_id, caption=final_text, parse_mode="HTML")
+                else:
+                    bot.send_video(chat_id=ch_id, video=file_id)
+                    bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
+            except: pass
                 
         success_count += 1
     if user_id:
