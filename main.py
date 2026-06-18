@@ -18,10 +18,38 @@ CHANNEL_ID_SISTER = -1001857424835   # Канал "Шоппинг" сестры
 ARCHIVE_CHANNEL_ID = -1004331909805  # ВАШ РЕАЛЬНЫЙ АРХИВ ДЛЯ ТАЙМЕРОВ ФОТО!
 MORNING_CHANNEL_ID = -1003735848662  # ВАШ КАНАЛ С КАРТИНКАМИ УТРА!
 
-SETTINGS_FILE = "settings_v2.json"
-
 USER_BUFFERS = {}
 ALBUM_BUFFERS = {}
+
+def save_collected_album(mg_id, u_id, chat_id):
+    try:
+        pieces = ALBUM_BUFFERS.pop(mg_id, [])
+        if not pieces: return
+        pieces.sort(key=lambda x: x['msg_id'])
+        
+        combined_text = ""
+        for p in pieces:
+            if p['txt']:
+                combined_text = p['txt']
+                break
+                
+        media_list = [{"type": p["type"], "file_id": p["file_id"]} for p in pieces]
+        
+        if u_id not in USER_BUFFERS:
+            USER_BUFFERS[u_id] = []
+        pos = len(USER_BUFFERS[u_id]) + 1
+        
+        USER_BUFFERS[u_id].append({
+            "type": "album",
+            "file_id": media_list,
+            "raw_original_text": combined_text,
+            "position": pos
+        })
+        bot.send_message(chat_id, f"📥 Альбом (из {len(pieces)} медиа) успешно добавлен в серию под номером {pos}. Когда закончите, напишите слово **Давай**")
+    except Exception as album_err:
+        bot.send_message(chat_id, f"❌ Ошибка внутри сборщика альбома: {album_err}")
+
+SETTINGS_FILE = "settings_v2.json"
 
 DEFAULT_SETTINGS = {
     "my": {
@@ -390,33 +418,6 @@ def execute_instant_publication(queue, target_channels, user_id):
     if user_id:
         try: bot.send_message(user_id, f"✅ Успешно выгружено **{success_count}** постов строго по вашему порядку!")
         except: pass
-
-def save_collected_album(mg_id, u_id, chat_id):
-    try:
-        pieces = ALBUM_BUFFERS.pop(mg_id, [])
-        if not pieces: return
-        pieces.sort(key=lambda x: x['msg_id'])
-        
-        combined_text = ""
-        for p in pieces:
-            if p['txt']:
-                combined_text = p['txt']
-                break
-                
-        media_list = [{"type": p["type"], "file_id": p["file_id"]} for p in pieces]
-        
-        if u_id not in USER_BUFFERS: USER_BUFFERS[u_id] = []
-        pos = len(USER_BUFFERS[u_id]) + 1
-        
-        USER_BUFFERS[u_id].append({
-            "type": "album",
-            "file_id": media_list,
-            "raw_original_text": combined_text,
-            "position": pos
-        })
-        bot.send_message(chat_id, f"📥 Альбом (из {len(pieces)} медиа) успешно добавлен в серию под номером {pos}. Когда закончите, напишите слово **Давай**")
-    except Exception as album_err:
-        bot.send_message(chat_id, f"❌ Ошибка внутри сборщика альбома: {album_err}")
 
 @bot.message_handler(content_types=['text', 'photo', 'video'])
 def handle_message(message):
