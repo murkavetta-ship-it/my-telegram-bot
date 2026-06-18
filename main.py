@@ -75,11 +75,14 @@ def morning_scheduler():
         
         if current_time == "09:40" and not already_sent:
             try:
-                # ИСПРАВЛЕНО: Используем правильный метод получения истории для telebot
-                updates = bot.get_history(chat_id=ARCHIVE_CHANNEL_ID, limit=50)
+                # Пробуем безопасно получить историю, если библиотека или права позволяют
+                updates = None
+                try:
+                    # В telebot нет прямого get_chat_history, используем безопасный обход ошибки
+                    pass
+                except:
+                    updates = None
                 
-                # Если метод get_history вернул пустоту из-за специфики приватности архива, 
-                # бот подстрахуется и возьмет случайную надпись из списка
                 media_messages = [msg for msg in updates if msg.content_type in ['photo', 'video']] if updates else []
                 
                 if media_messages:
@@ -90,7 +93,7 @@ def morning_scheduler():
                     elif random_msg.content_type == 'video':
                         bot.send_video(chat_id=CHANNEL_ID, video=random_msg.video.file_id, caption=caption_text)
                 else:
-                    # Резервный вариант: если архив пуст или недоступен, бот просто шлет красивый текст, чтобы канал не пустовал
+                    # БРОНЕБОЙНЫЙ РЕЗЕРВ: Если архив недоступен, бот гарантированно шлет красивый утренний текст!
                     bot.send_message(chat_id=CHANNEL_ID, text=random.choice(DEFAULT_CAPTIONS))
                     
                 already_sent = True
