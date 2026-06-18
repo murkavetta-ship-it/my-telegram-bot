@@ -18,7 +18,7 @@ CHANNEL_ID_SISTER = -1001857424835   # Канал "Шоппинг"
 ARCHIVE_CHANNEL_ID = -1001783532522  # Ваш архив
 
 SETTINGS_FILE = "settings_v2.json"
-# Глобальные буферы памяти — теперь они железно видны всем функциям
+
 USER_BUFFERS = {}
 ALBUM_BUFFERS = {}
 
@@ -53,7 +53,7 @@ bot = telebot.TeleBot(BOT_TOKEN)
 DEFAULT_CAPTIONS = [
     "☀️Доброго ранку! Гарного та продуктивного дня! 💐",
     "☕️Ранок починається з кави та гарного настрою! Бажаю всім вдалого дня! ❤️",
-    "☀️Прокидайтеся з посмішкою! Нехай сьогоднішній день принесе багато радості! ☀️",
+    "☀️Прокидайтеся з посмішкою! Нехай сегодняшниій день принесе багато радості! ☀️",
     "✨Чудового ранку! Бажаю, щоб сьогодні все задумане вдалося! ❤️",
     "🌱Доброго ранку, красуні! Бажаю натхнення та яскравого дня! ❤️",
     "🌸Прекрасного ранку! Нехай цей день принесе море позитиву та вдалих знахідок! ✨",
@@ -63,124 +63,8 @@ DEFAULT_CAPTIONS = [
     "✨Доброго ранку! Нехай кожен момент сьогоднішнего дня приносить радість та натхнення! ✨",
     "🕊️Мирного та тихого ранку! Нехай цей день буде безпечним, спокійним та принесе лише хороші новини! ✨",
     "☀️Доброго ранку! Бажаю мирного неба над головою, затишку в оселі та гармонії в душі! ✨",
-    "❤️Чудового ранку! Нехай день пройде під мирним небом, спокійно та продуктивно! Бережіть себе! ❤️"
+    "❤️Чудового ранку! Нехай день пройде под мирним небом, спокійно та продуктивно! Бережіть себе! ❤️"
 ]
-
-def morning_scheduler():
-    import pytz
-    kiev_tz = pytz.timezone("Europe/Kyiv")
-    morning_sent_today = False
-    
-    while True:
-        try:
-            now = datetime.now(kiev_tz)
-            current_time = now.strftime("%H:%M")
-            # --- 1. ОТЛОЖЕННЫЙ ПОСТИНГ ПО ТАЙМЕРАМ ---
-            for check_id in range(1, 600):
-                try:
-                    test_msg = bot.forward_message(chat_id=CHANNEL_ID, from_chat_id=ARCHIVE_CHANNEL_ID, message_id=check_id)
-                    bot.delete_message(chat_id=CHANNEL_ID, message_id=test_msg.message_id)
-                    
-                    txt = test_msg.text or test_msg.caption or ""
-                    match = re.search(r'#timer_(my|sis|both)_(\d{2}:\d{2})', txt)
-                    
-                    if match and match.group(2) == current_time:
-                        ch_type = match.group(1)
-                        target_channels = []
-                        if ch_type == "my": target_channels = [CHANNEL_ID]
-                        elif ch_type == "sis": target_channels = [CHANNEL_ID_SISTER]
-                        elif ch_type == "both": target_channels = [CHANNEL_ID, CHANNEL_ID_SISTER]
-                        
-                        queue_item = {
-                            "raw_original_text": txt.split(match.group(0))[-1].strip(),
-                            "type": "album" if test_msg.media_group_id else test_msg.content_type,
-                            "file_id": test_msg.photo[-1].file_id if test_msg.content_type == 'photo' else (test_msg.video.file_id if test_msg.content_type == 'video' else None)
-                        }
-                        
-                        ids_to_delete = [check_id]
-                        if test_msg.media_group_id:
-                            album_pieces = [test_msg]
-                            for n_id in range(check_id - 5, check_id + 6):
-                                if n_id == check_id: continue
-                                try:
-                                    s_msg = bot.forward_message(chat_id=CHANNEL_ID, from_chat_id=ARCHIVE_CHANNEL_ID, message_id=n_id)
-                                    bot.delete_message(chat_id=CHANNEL_ID, message_id=s_msg.message_id)
-                                    if s_msg.media_group_id == test_msg.media_group_id:
-                                        album_pieces.append(s_msg)
-                                        ids_to_delete.append(n_id)
-                                except: continue
-                            album_pieces.sort(key=lambda x: x.message_id)
-                            queue_item["file_id"] = [{"type": p.content_type, "file_id": p.photo[-1].file_id if p.content_type == 'photo' else p.video.file_id} for p in album_pieces]
-                        
-                        execute_instant_publication([queue_item], target_channels, None)
-                        
-                        for d_id in ids_to_delete:
-                            try: bot.delete_message(chat_id=ARCHIVE_CHANNEL_ID, message_id=d_id)
-                            except: pass
-                except:
-                    continue
-            # --- 2. УТРЕННИЙ ПОСТ В 08:30 ---
-            if current_time == "08:30" and not morning_sent_today:
-                morning_published = False
-                potential_morning_ids = list(range(1, 500))
-                random.shuffle(potential_morning_ids)
-                
-                for r_id in potential_morning_ids:
-                    try:
-                        caption_text = random.choice(DEFAULT_CAPTIONS)
-                        probe_msg = bot.forward_message(chat_id=CHANNEL_ID, from_chat_id=ARCHIVE_CHANNEL_ID, message_id=r_id)
-                        bot.delete_message(chat_id=CHANNEL_ID, message_id=probe_msg.message_id)
-                        
-                        morning_ids_delete = [r_id]
-                        
-                        if probe_msg.media_group_id:
-                            m_album = [probe_msg]
-                            m_tg_id = probe_msg.media_group_id
-                            
-                            for c_id in range(r_id - 5, r_id + 6):
-                                if c_id == r_id: continue
-                                try:
-                                    s_msg = bot.forward_message(chat_id=CHANNEL_ID, from_chat_id=ARCHIVE_CHANNEL_ID, message_id=c_id)
-                                    bot.delete_message(chat_id=CHANNEL_ID, message_id=s_msg.message_id)
-                                    if s_msg.media_group_id == m_tg_id:
-                                        m_album.append(s_msg)
-                                        morning_ids_delete.append(c_id)
-                                except: continue
-                                    
-                            m_album.sort(key=lambda x: x.message_id)
-                            media_group = []
-                            for index, msg in enumerate(m_album):
-                                current_caption = caption_text if index == 0 else None
-                                if msg.photo: media_group.append(types.InputMediaPhoto(msg.photo[-1].file_id, caption=current_caption))
-                                elif msg.video: media_group.append(types.InputMediaVideo(msg.video.file_id, caption=current_caption))
-                                    
-                            bot.send_media_group(chat_id=CHANNEL_ID, media=media_group)
-                            morning_published = True
-                        else:
-                            bot.copy_message(chat_id=CHANNEL_ID, from_chat_id=ARCHIVE_CHANNEL_ID, message_id=r_id, caption=caption_text)
-                            morning_published = True
-                            
-                        if morning_published:
-                            for msg_id in morning_ids_delete:
-                                try: bot.delete_message(chat_id=ARCHIVE_CHANNEL_ID, message_id=msg_id)
-                                except: pass
-                            morning_sent_today = True
-                            break
-                    except:
-                        continue
-                
-                if not morning_published:
-                    try: bot.send_message(chat_id=CHANNEL_ID, text=random.choice(DEFAULT_CAPTIONS))
-                    except: pass
-                    morning_sent_today = True
-                    
-            elif current_time != "08:30":
-                morning_sent_today = False
-
-        except Exception as e:
-            print(f"[-] Ошибка планировщика: {e}")
-            
-        time.sleep(60)
 
 def fetch_price_from_url(url):
     try:
@@ -206,6 +90,7 @@ def fetch_price_from_url(url):
         if potential_prices: return min(potential_prices), currency
     except: pass
     return None, None
+
 def clean_and_convert_text(text, profile="my"):
     all_settings = load_settings()
     settings = all_settings.get(profile, all_settings["my"])
@@ -322,6 +207,7 @@ def handle_callbacks(call):
         )
         bot.edit_message_text(text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=get_settings_keyboard(call.message.chat.id), parse_mode="Markdown")
         return
+
     if call.data in ["time_now", "time_30m", "time_exact"]:
         if call.data == "time_exact":
             msg = bot.send_message(user_id, "⏰ Введите точное время публикации в формате **ЧЧ:ММ** по Киеву (например, `18:45`):", parse_mode="Markdown")
