@@ -476,6 +476,8 @@ def handle_message(message):
             
     except Exception as general_err:
         bot.send_message(message.chat.id, f"❌ Критическая ошибка хэндлера: {general_err}")
+
+
 def morning_scheduler():
     import pytz
     kiev_tz = pytz.timezone("Europe/Kyiv")
