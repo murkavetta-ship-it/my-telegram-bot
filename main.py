@@ -64,17 +64,17 @@ DEFAULT_CAPTIONS = [
 ]
 
 def morning_scheduler():
-    """Функция автоматической отправки утреннего поста из архива строго в 09:10 по Киеву"""
+    """Функция автоматической отправки утреннего поста из архива строго в 09:25 по Киеву"""
+    import pytz
+    kiev_tz = pytz.timezone("Europe/Kyiv")
     already_sent = False
+    
     while True:
-        # Получаем текущее время UTC напрямую от системы
-        utc_now = datetime.utcnow()
-        # Вручную добавляем 3 часа, чтобы получить точное Киевское время (UTC+3)
-        kiev_hour = (utc_now.hour + 3) % 24
-        current_time = f"{kiev_hour:02d}:{utc_now.minute:02d}"
+        # Теперь часовой пояс подтягивается автоматически со всеми переводами стрелок
+        now = datetime.now(kiev_tz)
+        current_time = now.strftime("%H:%M")
         
-        # Бот отправит утренний пост ровно в 09:10 утра по Киеву
-        if current_time == "09:10" and not already_sent:
+        if current_time == "09:25" and not already_sent:
             try:
                 updates = bot.get_chat_history(chat_id=ARCHIVE_CHANNEL_ID, limit=50)
                 media_messages = [msg for msg in updates if msg.content_type in ['photo', 'video']]
@@ -88,7 +88,7 @@ def morning_scheduler():
                 already_sent = True
             except Exception as e:
                 print(f"[-] Ошибка утреннего поста: {e}")
-        elif current_time != "09:10":
+        elif current_time != "09:25":
             already_sent = False
         time.sleep(30)
 
