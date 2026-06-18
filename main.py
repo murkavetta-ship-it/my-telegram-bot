@@ -12,24 +12,27 @@ import telebot
 from telebot import types
 
 # --- НАСТРОЙКИ БОТА ---
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8916051883:AAEDiJIcniHtsgmHGmw_qx4KrARoU7gC67g")
-CHANNEL_ID = -1003735848662          # Ваш главный канал для постов
-CHANNEL_ID_SISTER = -1003857424835   # Реальный ID канала вашей сестры
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8310351083:AAFSw5Y-KC3C5TE6sMuS_m3wWiw6uY7z_kQ")
+CHANNEL_ID = -1003735848662          # Канал "Брендменю" (Ваш)
+CHANNEL_ID_SISTER = -1003857424835   # Канал "Шоппинг" (Сестры)
 ARCHIVE_CHANNEL_ID = -1003783532522  # Ваш архив для утренних картинок
 
-SETTINGS_FILE = "settings.json"
+SETTINGS_FILE = "settings_v2.json"
 
-# Базовые настройки по умолчанию
+# Базовые настройки по умолчанию для двух независимых профилей
 DEFAULT_SETTINGS = {
-    "usd_rate": 45.5,
-    "eur_rate": 52.5,
-    "gbp_rate": 61.5,
-    "commission": 1.10,
-    "global_discount": 0  # Глобальная скидка дня в % (0 - если выключена)
+    "my": {  # Профиль для Брендменю (Ваш)
+        "usd_rate": 45.5, "eur_rate": 52.5, "gbp_rate": 61.5,
+        "commission": 1.10, "global_discount": 0
+    },
+    "sis": {  # Профиль для Шоппинг (Сестры)
+        "usd_rate": 45.5, "eur_rate": 52.5, "gbp_rate": 61.5,
+        "commission": 1.10, "global_discount": 0
+    }
 }
 
 def load_settings():
-    """Загрузка настроек из файла памяти"""
+    """Загрузка раздельных настроек из файла памяти"""
     if os.path.exists(SETTINGS_FILE):
         try:
             with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
@@ -39,7 +42,7 @@ def load_settings():
     return DEFAULT_SETTINGS.copy()
 
 def save_settings(settings):
-    """Сохранение настроек в память"""
+    """Сохранение раздельных настроек в память"""
     try:
         with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
             json.dump(settings, f, ensure_ascii=False, indent=4)
@@ -61,11 +64,11 @@ DEFAULT_CAPTIONS = [
     "💫 Доброго ранку! Нехай кожен момент сьогоднішнього дня приносить радість та натхнення! ✨",
     "🕊️ Мирного та тихого ранку! Нехай цей день буде безпечним, спокійним та принесе лише хороші новини! ✨",
     "☀️ Доброго ранку! Бажаю мирного неба над головою, затишку в оселі та гармонії в душі! ✨",
-    "🌸 Чудового ранку! Нехай день пройде под мирним небом, спокійно та продуктивно! Бережіть себе! ❤️"
+    "🌸 Чудового ранку! Нехай день пройде під мирним небом, спокійно та продуктивно! Бережіть себе! ❤️"
 ]
 
 def morning_scheduler():
-    """Функция автоматической отправки строго ОДНОГО утреннего поста строго в 08:30 по Киеву"""
+    """Function to automatically send exactly ONE morning post from the archive at 08:30 Kyiv time"""
     import pytz
     kiev_tz = pytz.timezone("Europe/Kyiv")
     already_sent = False
@@ -76,47 +79,33 @@ def morning_scheduler():
         
         if current_time == "08:30" and not already_sent:
             published = False
-            
-            # Собираем список возможных ID (от 1 до 500) и перемешиваем их в случайном порядке
             potential_ids = list(range(1, 500))
             random.shuffle(potential_ids)
             
-            # Проверяем перемешанные ID по одному, пока не найдем ПЕРВЫЙ живой пост
             for random_id in potential_ids:
                 try:
                     caption_text = random.choice(DEFAULT_CAPTIONS)
-                    
-                    # Пробуем скопировать этот пост. Если он существует — он опубликуется
                     bot.copy_message(
                         chat_id=CHANNEL_ID,
                         from_chat_id=ARCHIVE_CHANNEL_ID,
                         message_id=random_id,
                         caption=caption_text
                     )
-                    
-                    # Пытаемся удалить его из архива, чтобы он больше не повторялся
-                    try:
-                        bot.delete_message(chat_id=ARCHIVE_CHANNEL_ID, message_id=random_id)
-                    except:
-                        pass
-                        
+                    try: bot.delete_message(chat_id=ARCHIVE_CHANNEL_ID, message_id=random_id)
+                    except: pass
                     published = True
-                    break  # 🔥 СТРОГИЙ СТОП-КРАН: Как только ОДИН пост отправлен, цикл ПОЛНОСТЬЮ прекращается!
+                    break
                 except:
-                    continue  # Если ID пустой, просто идем дальше
+                    continue
             
-            # Резервный вариант на случай, если архив абсолютно пуст
             if not published:
-                try:
-                    bot.send_message(chat_id=CHANNEL_ID, text=random.choice(DEFAULT_CAPTIONS))
-                except:
-                    pass
-                    
+                try: bot.send_message(chat_id=CHANNEL_ID, text=random.choice(DEFAULT_CAPTIONS))
+                except: pass
             already_sent = True
         elif current_time != "08:30":
             already_sent = False
         time.sleep(30)
-        
+
 def fetch_price_from_url(url):
     """Резервный парсер сайтов"""
     try:
@@ -143,9 +132,10 @@ def fetch_price_from_url(url):
     except: pass
     return None, None
 
-def clean_and_convert_text(text):
-    """Умный калькулятор: заменяет цены строго на их местах в тексте"""
-    settings = load_settings()
+def clean_and_convert_text(text, profile="my"):
+    """Умный калькулятор: берет изменяемые курсы и комиссии на основе профиля конкретного канала"""
+    all_settings = load_settings()
+    settings = all_settings.get(profile, all_settings["my"])
     
     discount_factor = 1.0
     discount_match = re.search(r'-(\d+)%', text)
@@ -176,8 +166,7 @@ def clean_and_convert_text(text):
                     
                     uah_price = math.ceil(price_val * discount_factor * rate * current_commission)
                     text = text.replace(raw_match, f"{uah_price}грн+вага")
-                except:
-                    continue
+                except: continue
     else:
         urls = re.findall(r'(https?://[^\s]+)', text)
         if urls:
@@ -185,26 +174,27 @@ def clean_and_convert_text(text):
             if original_price:
                 rate = settings["usd_rate"] if currency == 'USD' else (settings["eur_rate"] if currency == 'EUR' else settings["gbp_rate"])
                 final_price = math.ceil(original_price * discount_factor * rate * current_commission)
-                lines = text.split('\n')
-                lines = f"{final_price}грн+вага"
-                text = '\n'.join(lines)
+                text = f"{final_price}грн+вага\n{url}"
 
     text = text.replace("грн+вага+вага", "грн+вага")
     return text.strip()
-
-    # --- ИНТЕРАКТИВНАЯ КЛАВИАТУРА НАСТРОЕК ---
-def get_settings_keyboard():
-    settings = load_settings()
+# --- ИНТЕРАКТИВНАЯ КЛАВИАТУРА НАСТРОЕК (ДЛЯ ДВУХ ПРОФИЛЕЙ) ---
+def get_settings_keyboard(user_id):
+    all_settings = load_settings()
+    # Если зашел главный админ канала Шоппинг (сестра) — даем ей профиль sis, иначе — ваш my
+    profile = "sis" if str(user_id) == "222222222" or user_id == CHANNEL_ID_SISTER else "my"
+    settings = all_settings[profile]
+    
     comm_pct = int(round((settings["commission"] - 1) * 100))
     disc = settings["global_discount"]
     
     markup = types.InlineKeyboardMarkup(row_width=2)
-    btn_usd = types.InlineKeyboardButton(f"💵 USD: {settings['usd_rate']}", callback_data="set_usd")
-    btn_eur = types.InlineKeyboardButton(f"💶 EUR: {settings['eur_rate']}", callback_data="set_eur")
-    btn_gbp = types.InlineKeyboardButton(f"💷 GBP: {settings['gbp_rate']}", callback_data="set_gbp")
-    btn_com = types.InlineKeyboardButton(f"📈 Комиссия: +{comm_pct}%", callback_data="set_com")
-    btn_disc = types.InlineKeyboardButton(f"🏷️ Скидка дня: {f'-{disc}%' if disc > 0 else 'Выкл'}", callback_data="set_disc")
-    btn_status = types.InlineKeyboardButton("🔄 Обновить статус", callback_data="show_status")
+    btn_usd = types.InlineKeyboardButton(f"💵 USD: {settings['usd_rate']}", callback_data=f"set_usd_{profile}")
+    btn_eur = types.InlineKeyboardButton(f"💶 EUR: {settings['eur_rate']}", callback_data=f"set_eur_{profile}")
+    btn_gbp = types.InlineKeyboardButton(f"💷 GBP: {settings['gbp_rate']}", callback_data=f"set_gbp_{profile}")
+    btn_com = types.InlineKeyboardButton(f"📈 Комиссия: +{comm_pct}%", callback_data=f"set_com_{profile}")
+    btn_disc = types.InlineKeyboardButton(f"🏷️ Скидка дня: {f'-{disc}%' if disc > 0 else 'Выкл'}", callback_data=f"set_disc_{profile}")
+    btn_status = types.InlineKeyboardButton("🔄 Обновить статус", callback_data=f"show_status_{profile}")
     
     markup.add(btn_usd, btn_eur)
     markup.add(btn_gbp, btn_com)
@@ -214,46 +204,50 @@ def get_settings_keyboard():
 
 @bot.message_handler(commands=['start', 'settings'])
 def show_settings_panel(message):
+    profile_name = "Шоппинг 👭" if message.chat.id == CHANNEL_ID_SISTER else "Брендменю 🛍"
     bot.send_message(
         message.chat.id, 
-        "Привет, Богиня! 👑 Добро пожаловать в панель управления тарифами.\n\n"
-        "Нажимайте на кнопки ниже, чтобы мгновенно изменить курсы, общую наценку или активировать глобальную скидку на сегодня. Посты, пересланные без команд, будут сразу пересчитываться по этим тарифам!", 
-        reply_markup=get_settings_keyboard()
+        f"Привет, Богиня! 👑 Добро пожаловать в панель управления тарифами: **{profile_name}**.\n\n"
+        "Нажимайте на кнопки ниже, чтобы мгновенно изменить курсы, общую наценку или активировать глобальную скидку дня. Ваши личные настройки полностью независимы!", 
+        reply_markup=get_settings_keyboard(message.chat.id),
+        parse_mode="Markdown"
     )
-
-# Умная память для сохранения идеального порядка постов
-USER_BUFFERS = {}
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callbacks(call):
-    settings = load_settings()
+    all_settings = load_settings()
     bot.answer_callback_query(call.id)
     
-    if call.data == "show_status":
+    # Определяем какой профиль редактируется на основе хвоста callback_data (_my или _sis)
+    profile = "sis" if call.data.endswith("_sis") else "my"
+    settings = all_settings[profile]
+    profile_title = "Шоппинг 👭" if profile == "sis" else "Брендменю 🛍"
+    
+    if call.data.startswith("show_status_"):
         comm_pct = int(round((settings["commission"] - 1) * 100))
         disc_val = settings.get("global_discount", 0)
         
         text = (
-            f"📊 Текущие активные тарифы:\n"
+            f"📊 Текущие тарифы панели **{profile_title}**:\n"
             f"• Курс USD: {settings['usd_rate']} грн\n"
             f"• Курс EUR: {settings['eur_rate']} грн\n"
             f"• Курс GBP: {settings['gbp_rate']} грн\n"
             f"• Ваша комиссия: +{comm_pct}%\n"
             f"• Скидка дня: {f'-{disc_val}%' if disc_val > 0 else 'Нет'}"
         )
-        bot.edit_message_text(text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=get_settings_keyboard())
+        bot.edit_message_text(text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=get_settings_keyboard(call.message.chat.id))
         
-    elif call.data in ["set_usd", "set_eur", "set_gbp", "set_com", "set_disc"]:
+    elif any(call.data.startswith(x) for x in ["set_usd_", "set_eur_", "set_gbp_", "set_com_", "set_disc_"]):
+        action = call.data.split("_")[1] # usd, eur, gbp, com, disc
         prompt_texts = {
-            "set_usd": "Введите новый курс доллара 🇺🇸 (например, 46.2):",
-            "set_eur": "Введите новый курс евро 🇪🇺 (например, 53.1):",
-            "set_gbp": "Введите новый курс фунта 🇬🇧 (например, 62.4):",
-            "set_com": "Введите процент комиссии 📈 (только цифру, например 12 если хотите +12%):",
-            "set_disc": "Введите глобальную скидку дня 🏷️ в % (например 20, или 0 чтобы выключить её):"
+            "usd": f"[{profile_title}] Введите новый курс доллара 🇺🇸:",
+            "eur": f"[{profile_title}] Введите новый курс евро 🇪🇺:",
+            "gbp": f"[{profile_title}] Введите новый курс фунта 🇬🇧:",
+            "com": f"[{profile_title}] Введите процент комиссии 📈 (только цифру):",
+            "disc": f"[{profile_title}] Введите глобальную скидку дня 🏷️ в % (или 0):"
         }
-        msg = bot.send_message(call.message.chat.id, prompt_texts[call.data])
-        bot.register_next_step_handler(msg, process_setting_input, call.data)
-        
+        msg = bot.send_message(call.message.chat.id, prompt_texts[action])
+        bot.register_next_step_handler(msg, process_setting_input, action, profile)
     # --- ЛОГИКА МАССОВОЙ ПУБЛИКАЦИИ С ИДЕАЛЬНЫМ ПОРЯДКОМ И ЗАЩИТОЙ ---
     elif call.data in ["pub_my", "pub_sis", "pub_both"]:
         user_id = call.message.chat.id
@@ -270,7 +264,7 @@ def handle_callbacks(call):
         
         bot.edit_message_text(f"⏳ Публикую массив из **{len(queue)}** постов в строгом порядке получения...", chat_id=user_id, message_id=call.message.message_id)
         
-        # Сортируем посты СТРОГО по порядковому номеру захода в бот, а не по времени
+        # Сортируем строго по хронологии захода в бот
         queue.sort(key=lambda x: x["position"])
         
         success_count = 0
@@ -278,14 +272,17 @@ def handle_callbacks(call):
             for item in queue:
                 msg_type = item["type"]
                 file_id = item["file_id"]
-                msg_text = item["text"]
+                raw_text = item["raw_original_text"] # Берем чистый исходник, чтобы пересчитать по тарифам конкретного канала!
                 
                 # Зачищаем старые подписи, если они были
-                if msg_text and "🛍 Для замовлень 🛍" in msg_text:
-                    msg_text = msg_text.split("🛍 Для замовлень 🛍")[0].strip()
+                if raw_text and "🛍 Для замовлень 🛍" in raw_text:
+                    raw_text = raw_text.split("🛍 Для замовлень 🛍")[0].strip()
                 
                 for ch_id in target_channels:
-                    # Подставляем нужные контакты. К пустым фото подписи прикрепляться не будут!
+                    # Бот автоматически пересчитывает один и тот же пост по индивидуальным тарифам выбранного канала!
+                    current_profile = "my" if ch_id == CHANNEL_ID else "sis"
+                    msg_text = clean_and_convert_text(raw_text, current_profile) if raw_text else ""
+                    
                     if msg_text:
                         if ch_id == CHANNEL_ID:
                             signature = (
@@ -311,30 +308,32 @@ def handle_callbacks(call):
                         bot.send_video(chat_id=ch_id, video=file_id, caption=final_text if final_text else None, parse_mode="HTML")
                 
                 success_count += 1
-                time.sleep(2.0)  # Безопасный интервал для плавности ленты в канале
+                time.sleep(2.0)  # Плавный интервал от флуда
                 
             USER_BUFFERS[user_id] = []  # Чистим буфер
-            bot.send_message(user_id, f"✅ Идеально! Все **{success_count}** постов выгружены строго по вашему порядку.")
+            bot.send_message(user_id, f"✅ Успешно выгружено **{success_count}** постов строго по вашему порядку!")
         except Exception as e:
             bot.send_message(user_id, f"❌ Ошибка отправки на {success_count}-м посте: {e}")
 
-def process_setting_input(message, action):
+def process_setting_input(message, action, profile):
     try:
         val = float(message.text.replace(',', '.').strip())
-        settings = load_settings()
+        all_settings = load_settings()
         
-        if action == "set_usd": settings["usd_rate"] = val
-        elif action == "set_eur": settings["eur_rate"] = val
-        elif action == "set_gbp": settings["gbp_rate"] = val
-        elif action == "set_com": settings["commission"] = 1 + (val / 100)
-        elif action == "set_disc": settings["global_discount"] = int(val)
+        if action == "usd": all_settings[profile]["usd_rate"] = val
+        elif action == "eur": all_settings[profile]["eur_rate"] = val
+        elif action == "gbp": all_settings[profile]["gbp_rate"] = val
+        elif action == "com": all_settings[profile]["commission"] = 1 + (val / 100)
+        elif action == "disc": all_settings[profile]["global_discount"] = int(val)
         
-        save_settings(settings)
-        bot.send_message(message.chat.id, "✅ Настройки успешно обновлены! Нажмите /settings.")
+        save_settings(all_settings)
+        bot.send_message(message.chat.id, "✅ Настройки успешно сохранены в память профиля! Нажмите /settings для проверки.")
     except:
-        bot.send_message(message.chat.id, "❌ Число введено неверно.")
+        bot.send_message(message.chat.id, "❌ Ошибка ввода числа. Нажмите /settings и попробуйте снова.")
 
 # --- УМНЫЙ ХЕНДЛЕР СБОРА ПОСТОВ В КОРЗИНУ ---
+USER_BUFFERS = {}
+
 @bot.message_handler(content_types=['text', 'photo', 'video'])
 def handle_message(message):
     text = message.text or message.caption or ""
@@ -345,7 +344,6 @@ def handle_message(message):
     if user_id not in USER_BUFFERS:
         USER_BUFFERS[user_id] = []
         
-    # Команда-триггер для вывода кнопок публикации
     if text.strip().lower() in ["давай", "давай ", "готово", "пуск"]:
         queue_len = len(USER_BUFFERS[user_id])
         if queue_len == 0:
@@ -353,32 +351,37 @@ def handle_message(message):
             return
             
         markup = types.InlineKeyboardMarkup(row_width=2)
-        btn_my = types.InlineKeyboardButton("🛍️ В мой канал", callback_data="pub_my")
-        btn_sis = types.InlineKeyboardButton("👭 В канал сестры", callback_data="pub_sis")
+        btn_my = types.InlineKeyboardButton("🛍️ В Брендменю", callback_data="pub_my")
+        btn_sis = types.InlineKeyboardButton("👭 В Шоппинг", callback_data="pub_sis")
         btn_both = types.InlineKeyboardButton("🌍 В оба канала", callback_data="pub_both")
         markup.add(btn_my, btn_sis)
         markup.add(btn_both)
         
-        bot.send_message(user_id, f"📦 Собрано **{queue_len}** постов. Все чистые фото приняты, порядок зафиксирован!\nКуда отправляем этот массив?", reply_markup=markup)
+        bot.send_message(user_id, f"📦 Собрано **{queue_len}** постов. Порядок зафиксирован!\nКуда отправляем эту серию анонсов?", reply_markup=markup)
         return
 
-    # Определяем СТРОГИЙ порядковый номер сообщения в буфере на основе текущей длины списка
     current_position = len(USER_BUFFERS[user_id]) + 1
-
-    # Пересчитываем цены для текущего анонса
-    new_text = clean_and_convert_text(text) if text else ""
-    
     file_id = None
     if message.content_type == 'photo': file_id = message.photo[-1].file_id
     elif message.content_type == 'video': file_id = message.video.file_id
     
-    # Сохраняем пост в корзину вместе с его ЖЕСТКИМ номером позиции (position)
+    # Сохраняем ЧИСТЫЙ исходный текст. Пересчет произойдет в момент клика на нужный канал!
     USER_BUFFERS[user_id].append({
         "type": message.content_type,
         "file_id": file_id,
-        "text": new_text,
-        "position": current_position  # 🔥 Фиксируем строгий порядок прихода!
+        "raw_original_text": text,
+        "position": current_position
     })
     
-    # Легкое подтверждение, чтобы вы видели, что бот взял пост
-    bot.reply_to(message, f"📥 Пост {current_position} принят.")
+    bot.reply_to(message, f"📥 Пост {current_position} успешно добавлен в серию. Когда закончите, напишите слово **Давай**")
+
+if __name__ == "__main__":
+    scheduler_thread = threading.Thread(target=morning_scheduler, daemon=True)
+    scheduler_thread.start()
+    
+    import os
+    port = int(os.environ.get("PORT", 10000))
+    os.system(f"python -m http.server {port} &")
+    
+    print("[+] Бот успешно запущен на два раздельных профиля...")
+    bot.infinity_polling(timeout=10, long_polling_timeout=5)
