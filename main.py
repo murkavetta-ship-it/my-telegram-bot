@@ -12,7 +12,7 @@ import telebot
 from telebot import types
 
 # --- НАСТРОЙКИ БОТА ---
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8310351083:AAFSw5Y-KC3C5TE6sMuS_m3wWiw6uY7z_kQ")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8916051883:AAEDiJIcniHtsgmHGmw_qx4KrARoU7gC67g")
 CHANNEL_ID = -1003735848662          # Канал "Брендменю" (Ваш)
 CHANNEL_ID_SISTER = -1003857424835   # Канал "Шоппинг" (Сестры)
 ARCHIVE_CHANNEL_ID = -1003783532522  # Ваш архив для утренних картинок
