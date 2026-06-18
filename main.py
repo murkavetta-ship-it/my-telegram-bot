@@ -12,9 +12,10 @@ import telebot
 from telebot import types
 
 # --- НАСТРОЙКИ БОТА ---
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8916051883:AAEDiJIcniHtsgmHGmw_qx4KrARoU7gC67g")
-CHANNEL_ID = -1003735848662         # Ваш главный канал для постов
-ARCHIVE_CHANNEL_ID = -1003783532522 # Ваш секретный архив с картинками
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8310351083:AAFSw5Y-KC3C5TE6sMuS_m3wWiw6uY7z_kQ")
+CHANNEL_ID = -1003735848662          # Ваш главный канал для постов
+CHANNEL_ID_SISTER = -1003857424835   # Реальный ID канала вашей сестры
+ARCHIVE_CHANNEL_ID = -1003783532522  # Ваш архив для утренних картинок
 
 SETTINGS_FILE = "settings.json"
 
@@ -58,13 +59,13 @@ DEFAULT_CAPTIONS = [
     "☕ Затишного ранку та смачної кави! Бажаю чудового настрою на весь день! ❤️",
     "🍇 Радісного ранку! Прокидайтеся та підкорюйте цей світ своєю посмішкою! Гарного дня! ☀️",
     "💫 Доброго ранку! Нехай каждый момент сьогоднішнього дня приносить радість та натхнення! ✨",
-    "🕊️ Мирного та тихого ранку! Нехай цей день буде безпечним, спокійним та принесе лише хороші новини! ✨",
+    "🕊️ Мирного та тихого ранку! Нехай цей день буде безпечним, спокійным та принесе лише хороші новини! ✨",
     "☀️ Доброго ранку! Бажаю мирного неба над головою, затишку в оселі та гармонії в душі! ✨",
-    "🌺 Чудового ранку! Нехай день пройде под мирним небом, спокійно та продуктивно! Бережіть себе! ❤️"
+    "🌸 Чудового ранку! Нехай день пройде под мирним небом, спокійно та продуктивно! Бережіть себе! ❤️"
 ]
 
 def morning_scheduler():
-    """Функция автоматической отправки утреннего поста строго в 10:00 по Киеву со случайным выбором и автоудалением"""
+    """Функция автоматической отправки строго ОДНОГО утреннего поста строго в 08:30 по Киеву"""
     import pytz
     kiev_tz = pytz.timezone("Europe/Kyiv")
     already_sent = False
@@ -73,26 +74,19 @@ def morning_scheduler():
         now = datetime.now(kiev_tz)
         current_time = now.strftime("%H:%M")
         
-        if current_time == "10:00" and not already_sent:
+        if current_time == "08:30" and not already_sent:
             published = False
-            live_msg_ids = []
             
-            # Шаг 1. Находим ID всех существующих постов в архиве (проверяем диапазон до 400 сообщений)
-            for msg_id in range(1, 400):
-                try:
-                    # Пробуем безопасно переслать в лог-канал для проверки "живой" ли пост
-                    bot.forward_message(chat_id=CHANNEL_ID, from_chat_id=ARCHIVE_CHANNEL_ID, message_id=msg_id)
-                    live_msg_ids.append(msg_id)
-                except:
-                    continue
+            # Собираем список возможных ID (от 1 до 500) и перемешиваем их в случайном порядке
+            potential_ids = list(range(1, 500))
+            random.shuffle(potential_ids)
             
-            # Шаг 2. Если живые посты найдены, выбираем один случайный ID
-            if live_msg_ids:
-                random_id = random.choice(live_msg_ids)
+            # Проверяем перемешанные ID по одному, пока не найдем ПЕРВЫЙ живой пост
+            for random_id in potential_ids:
                 try:
                     caption_text = random.choice(DEFAULT_CAPTIONS)
                     
-                    # Копируем эту случайную картинку/видео в главный канал с утренним текстом
+                    # Пробуем скопировать этот пост. Если он существует — он опубликуется
                     bot.copy_message(
                         chat_id=CHANNEL_ID,
                         from_chat_id=ARCHIVE_CHANNEL_ID,
@@ -100,17 +94,18 @@ def morning_scheduler():
                         caption=caption_text
                     )
                     
-                    # Сразу после успеха САМ удаляет её из архива, чтобы она больше не выпадала
+                    # Пытаемся удалить его из архива, чтобы он больше не повторялся
                     try:
                         bot.delete_message(chat_id=ARCHIVE_CHANNEL_ID, message_id=random_id)
                     except:
                         pass
                         
                     published = True
-                except Exception as e:
-                    print(f"[-] Ошибка отправки случайного поста {random_id}: {e}")
+                    break  # 🔥 СТРОГИЙ СТОП-КРАН: Как только ОДИН пост отправлен, цикл ПОЛНОСТЬЮ прекращается!
+                except:
+                    continue  # Если ID пустой, просто идем дальше
             
-            # Резервный вариант: если архив совсем пуст, гарантированно шлем текст
+            # Резервный вариант на случай, если архив абсолютно пуст
             if not published:
                 try:
                     bot.send_message(chat_id=CHANNEL_ID, text=random.choice(DEFAULT_CAPTIONS))
@@ -118,11 +113,11 @@ def morning_scheduler():
                     pass
                     
             already_sent = True
-        elif current_time != "10:00":
+        elif current_time != "08:30":
             already_sent = False
         time.sleep(30)
-
-def fetch_price_from_url(url):
+        
+        def fetch_price_from_url(url):
     """Резервный парсер сайтов"""
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -152,7 +147,6 @@ def clean_and_convert_text(text):
     """Умный калькулятор: заменяет цены строго на их местах в тексте"""
     settings = load_settings()
     
-    # 1. Проверяем скидку купона (например: -20%)
     discount_factor = 1.0
     discount_match = re.search(r'-(\d+)%', text)
     if discount_match:
@@ -160,13 +154,9 @@ def clean_and_convert_text(text):
     elif settings["global_discount"] > 0:
         discount_factor = (100 - settings["global_discount"]) / 100
 
-    # Определяем индивидуальную комиссию для Crocs (5%), для остальных берем из настроек меню
     current_commission = 1.05 if "crocs" in text.lower() else settings["commission"]
 
-    # 2. Улучшенный всеядный поиск валют (Исправленный паттерн, который не теряет £)
     currency_pattern = r'(?:[$€£]\s*)?\d+(?:[\.,]\d+)?(?:\s*[$€£])?'
-    
-    # Ищем только те совпадения, которые действительно содержат знаки валют
     matches = [m.group() for m in re.finditer(currency_pattern, text) if any(s in m.group() for s in '$€£')]
     
     if matches:
@@ -189,7 +179,6 @@ def clean_and_convert_text(text):
                 except:
                     continue
     else:
-        # Резервный парсер по ссылке
         urls = re.findall(r'(https?://[^\s]+)', text)
         if urls:
             original_price, currency = fetch_price_from_url(urls)
@@ -202,7 +191,7 @@ def clean_and_convert_text(text):
 
     text = text.replace("грн+вага+вага", "грн+вага")
     return text.strip()
-# --- ИНТЕРАКТИВНАЯ КЛАВИАТУРА НАСТРОЕК ---
+    # --- ИНТЕРАКТИВНАЯ КЛАВИАТУРА НАСТРОЕК ---
 def get_settings_keyboard():
     settings = load_settings()
     comm_pct = int(round((settings["commission"] - 1) * 100))
@@ -261,7 +250,7 @@ def handle_callbacks(call):
         msg = bot.send_message(call.message.chat.id, prompt_texts[call.data])
         bot.register_next_step_handler(msg, process_setting_input, call.data)
         
-    # --- ЛОГИКА КНОПОК ОТПРАВКИ В КАНАЛЫ (ДЛЯ ВАС И СЕСТРЫ) ---
+    # --- ЛОГИКА КНОПОК ОТПРАВКИ В КАНАЛЫ ---
     elif call.data in ["pub_my", "pub_sis", "pub_both"]:
         msg_text = call.message.text or call.message.caption or ""
         if "Предпросмотр анонса:" in msg_text:
