@@ -301,23 +301,23 @@ def handle_callbacks(call):
                 file_id = item["file_id"]
                 raw_text = item["raw_original_text"]
                 
-                for ch_id in target_channels:
-                # Умная зачистка старых подписей и контактов перед пересчетом
-                clean_raw_text = raw_text
-                if clean_raw_text:
-                    # 1. Если есть ваш фирменный маркер, жестко отрезаем всё после него
-                    if "🛍️ Для замовлень 🛍️" in clean_raw_text:
-                    clean_raw_text = clean_raw_text.split("🛍️ Для замовлень 🛍️")[0].strip()
-                    
-                    # 2. Ищем любые чужие юзернеймы телеграма (например, @username) в конце текста и стираем их
-                    clean_raw_text = re.sub(r'📲?\s*(?:для зв\'язку|контакт|зв\'язок)?\s*:\s*@\w+', '', clean_raw_text, flags=re.IGNORECASE)
-                    
-                    # 3. Находим любые чужие ссылки на бандлер или другие сайты и удаляем их строки целиком
-                    clean_raw_text = re.sub(r'(?:бандлер|замовлення|сайт)?\s*https?://[^\s]+', '', clean_raw_text, flags=re.IGNORECASE)
-                    
-                    # Убираем лишние пробелы и переносы строк, которые могли остаться после удаления
-                    clean_raw_text = clean_raw_text.strip()
-                      
+        for ch_id in target_channels:
+            # Умная зачистка старых подписей и контактов перед пересчетом
+            clean_raw_text = raw_text
+            if clean_raw_text:
+                # 1. Если есть ваш фирменный маркер, жестко отрезаем всё после него
+                if "🛍️ Для замовлень 🛍️" in clean_raw_text:
+                    clean_raw_text = clean_raw_text.split("🛍️ Для замовлень 🛍️").strip()
+                
+                # 2. Ищем любые чужие юзернеймы телеграма (например, @username) в конце текста и стираем их
+                clean_raw_text = re.sub(r'📲?\s*(?:для зв\'язку|контакт|зв\'язок)?\s*:\s*@\w+', '', clean_raw_text, flags=re.IGNORECASE)
+                
+                # 3. Находим любые чужие ссылки на бандлер или другие сайты и удаляем их строки целиком
+                clean_raw_text = re.sub(r'(?:бандлер|замовлення|сайт)?\s*https?://[^\s]+', '', clean_raw_text, flags=re.IGNORECASE)
+                
+                # Убираем лишние пробелы и переносы строк, которые могли остаться после удаления
+                clean_raw_text = clean_raw_text.strip()
+
                 current_profile = "my" if ch_id == CHANNEL_ID else "sis"
                 msg_text = clean_and_convert_text(clean_raw_text, current_profile) if clean_raw_text else ""
                 
