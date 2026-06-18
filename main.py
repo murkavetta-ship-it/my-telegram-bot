@@ -13,12 +13,12 @@ from telebot import types
 
 # --- НАСТРОЙКИ БОТА ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8916051883:AAFTRKsf71rmexnOL2V4stioUezeTPAodrA")
-CHANNEL_ID = -1002373540662          # Канал "Брендменю" (Ваш)
-CHANNEL_ID_SISTER = -1001857424835   # Канал "Шоппинг" (Сестры)
-ARCHIVE_CHANNEL_ID = -1001783532522  # Ваш архив для утренних картинок
+CHANNEL_ID = -1002373540662          # Канал "Брендменю"
+CHANNEL_ID_SISTER = -1001857424835   # Канал "Шоппинг"
+ARCHIVE_CHANNEL_ID = -1001783532522  # Ваш архив
 
 SETTINGS_FILE = "settings_v2.json"
-
+# Глобальные буферы памяти — теперь они железно видны всем функциям
 USER_BUFFERS = {}
 ALBUM_BUFFERS = {}
 
@@ -34,7 +34,6 @@ DEFAULT_SETTINGS = {
 }
 
 def load_settings():
-    """Загрузка раздельных настроек из файла памяти"""
     if os.path.exists(SETTINGS_FILE):
         try:
             with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
@@ -44,7 +43,6 @@ def load_settings():
     return DEFAULT_SETTINGS.copy()
 
 def save_settings(settings):
-    """Сохранение раздельных настроек в память"""
     try:
         with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
             json.dump(settings, f, ensure_ascii=False, indent=4)
@@ -52,7 +50,6 @@ def save_settings(settings):
         pass
 
 bot = telebot.TeleBot(BOT_TOKEN)
-
 DEFAULT_CAPTIONS = [
     "☀️Доброго ранку! Гарного та продуктивного дня! 💐",
     "☕️Ранок починається з кави та гарного настрою! Бажаю всім вдалого дня! ❤️",
@@ -68,6 +65,7 @@ DEFAULT_CAPTIONS = [
     "☀️Доброго ранку! Бажаю мирного неба над головою, затишку в оселі та гармонії в душі! ✨",
     "❤️Чудового ранку! Нехай день пройде під мирним небом, спокійно та продуктивно! Бережіть себе! ❤️"
 ]
+
 def morning_scheduler():
     import pytz
     kiev_tz = pytz.timezone("Europe/Kyiv")
@@ -77,19 +75,17 @@ def morning_scheduler():
         try:
             now = datetime.now(kiev_tz)
             current_time = now.strftime("%H:%M")
-            
-            # --- 1. ОТЛОЖЕННЫЙ ПОСТИНГ ПО ТАЙМЕРАМ (Каждую минуту) ---
+            # --- 1. ОТЛОЖЕННЫЙ ПОСТИНГ ПО ТАЙМЕРАМ ---
             for check_id in range(1, 600):
                 try:
                     test_msg = bot.forward_message(chat_id=CHANNEL_ID, from_chat_id=ARCHIVE_CHANNEL_ID, message_id=check_id)
                     bot.delete_message(chat_id=CHANNEL_ID, message_id=test_msg.message_id)
                     
                     txt = test_msg.text or test_msg.caption or ""
-                    
                     match = re.search(r'#timer_(my|sis|both)_(\d{2}:\d{2})', txt)
+                    
                     if match and match.group(2) == current_time:
                         ch_type = match.group(1)
-                        
                         target_channels = []
                         if ch_type == "my": target_channels = [CHANNEL_ID]
                         elif ch_type == "sis": target_channels = [CHANNEL_ID_SISTER]
@@ -102,7 +98,6 @@ def morning_scheduler():
                         }
                         
                         ids_to_delete = [check_id]
-                        
                         if test_msg.media_group_id:
                             album_pieces = [test_msg]
                             for n_id in range(check_id - 5, check_id + 6):
@@ -124,7 +119,6 @@ def morning_scheduler():
                             except: pass
                 except:
                     continue
-
             # --- 2. УТРЕННИЙ ПОСТ В 08:30 ---
             if current_time == "08:30" and not morning_sent_today:
                 morning_published = False
@@ -189,7 +183,6 @@ def morning_scheduler():
         time.sleep(60)
 
 def fetch_price_from_url(url):
-    """Ваш оригинальный парсер сайтов"""
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         response = requests.get(url, headers=headers, timeout=10)
@@ -214,7 +207,6 @@ def fetch_price_from_url(url):
     except: pass
     return None, None
 def clean_and_convert_text(text, profile="my"):
-    """Ваш умный калькулятор с поддержкой точек и запятых в копейках"""
     all_settings = load_settings()
     settings = all_settings.get(profile, all_settings["my"])
     
@@ -227,7 +219,6 @@ def clean_and_convert_text(text, profile="my"):
         
     current_commission = 1.05 if "crocs" in text.lower() else settings["commission"]
     
-    # Регулярка теперь видит и точки, и запятые!
     currency_pattern = r'(?:\$[\d\s.,]+)|(?:[\d\s.,]+\$)|(?:€[\d\s.,]+)|(?:[\d\s.,]+€)|(?:£[\d\s.,]+)|(?:[\d\s.,]+£)'
     matches = [m.group() for m in re.finditer(currency_pattern, text)] if any(s in text for s in '$€£') else []
     
@@ -260,7 +251,6 @@ def clean_and_convert_text(text, profile="my"):
                 
     text = text.replace("грн+вага+вага", "грн+вага")
     return text.strip()
-
 def get_settings_keyboard(user_id):
     all_settings = load_settings()
     profile = "sis" if str(user_id) == "222222222" or user_id == CHANNEL_ID_SISTER else "my"
@@ -286,6 +276,7 @@ def get_settings_keyboard(user_id):
     markup.add(btn_disc, btn_sig)
     markup.add(btn_status)
     return markup
+
 @bot.message_handler(commands=['start', 'settings'])
 def show_settings_panel(message):
     profile_name = "Шоппинг 🛍️" if message.chat.id == CHANNEL_ID_SISTER else "Брендменю 👑"
@@ -293,6 +284,7 @@ def show_settings_panel(message):
         message.chat.id,
         f"Привет, Богиня! 👑 Добро пожаловать в панель управления тарифами: **{profile_name}**.\n\n"
         "Нажимайте на кнопки ниже, чтобы мгновенно изменить курсы, общую наценку или активировать глобальную скидку дня.",
+        reply_markup=get_settings_keyboard(message.chat.id),
         reply_markup=get_settings_keyboard(message.chat.id),
         parse_mode="Markdown"
     )
@@ -331,7 +323,6 @@ def handle_callbacks(call):
         )
         bot.edit_message_text(text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=get_settings_keyboard(call.message.chat.id), parse_mode="Markdown")
         return
-
     if call.data in ["time_now", "time_30m", "time_exact"]:
         if call.data == "time_exact":
             msg = bot.send_message(user_id, "⏰ Введите точное время публикации в формате **ЧЧ:ММ** по Киеву (например, `18:45`):", parse_mode="Markdown")
@@ -403,6 +394,7 @@ def handle_callbacks(call):
         }
         msg = bot.send_message(user_id, prompt_texts[action])
         bot.register_next_step_handler(msg, process_setting_input, action, profile)
+
 def process_setting_input(message, action, profile):
     try:
         val = float(message.text.replace(',', '.').strip())
@@ -418,7 +410,6 @@ def process_setting_input(message, action, profile):
         bot.send_message(message.chat.id, "✅ Настройки успешно сохранены в память профиля! Нажмите /settings для проверки.")
     except:
         bot.send_message(message.chat.id, "❌ Ошибка ввода числа. Нажмите /settings и попробуйте снова.")
-
 def process_exact_time_input(message):
     user_id = message.chat.id
     time_text = message.text.strip()
@@ -524,14 +515,12 @@ def handle_message(message):
         user_id = message.chat.id
         text = message.text if message.text else (message.caption if message.caption else "")
         
-        # СТОПРОЦЕНТНАЯ ЗАЩИТА: Железно создаем пустую корзину для пользователя, если её нет
         if user_id not in USER_BUFFERS:
             USER_BUFFERS[user_id] = []
             
         if text.startswith('/'): 
             return
 
-        # Проверка слова-команды на выгрузку всей серии
         if text.strip().lower() in ["давай", "давай ", "готово", "пуск"]:
             queue_len = len(USER_BUFFERS[user_id])
             if queue_len == 0:
@@ -557,8 +546,7 @@ def handle_message(message):
         def save_collected_album(mg_id, u_id, chat_id):
             try:
                 pieces = ALBUM_BUFFERS.pop(mg_id, [])
-                if not pieces: 
-                    return
+                if not pieces: return
                 pieces.sort(key=lambda x: x['msg_id'])
                 
                 combined_text = ""
@@ -569,8 +557,7 @@ def handle_message(message):
                         
                 media_list = [{"type": p["type"], "file_id": p["file_id"]} for p in pieces]
                 
-                if u_id not in USER_BUFFERS:
-                    USER_BUFFERS[u_id] = []
+                if u_id not in USER_BUFFERS: USER_BUFFERS[u_id] = []
                 pos = len(USER_BUFFERS[u_id]) + 1
                 
                 USER_BUFFERS[u_id].append({
@@ -583,7 +570,6 @@ def handle_message(message):
             except Exception as album_err:
                 bot.send_message(chat_id, f"❌ Ошибка внутри сборщика альбома: {album_err}")
 
-        # Обработка альбомов и одиночных постов
         if message.media_group_id:
             mg_id = message.media_group_id
             if mg_id not in ALBUM_BUFFERS:
@@ -604,7 +590,6 @@ def handle_message(message):
                 "position": current_position
             })
             bot.reply_to(message, f"📥 Пост {current_position} успешно добавлен в серию. Когда закончите, напишите слово **Давай**")
-            
     except Exception as general_err:
         bot.send_message(message.chat.id, f"❌ Критическая ошибка хэндлера: {general_err}")
 
