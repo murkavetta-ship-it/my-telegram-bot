@@ -64,20 +64,24 @@ DEFAULT_CAPTIONS = [
 ]
 
 def morning_scheduler():
-    """Функция автоматической отправки утреннего поста из архива строго в 09:25 по Киеву"""
+    """Функция автоматической отправки утреннего поста из архива строго в 09:40 по Киеву"""
     import pytz
     kiev_tz = pytz.timezone("Europe/Kyiv")
     already_sent = False
     
     while True:
-        # Теперь часовой пояс подтягивается автоматически со всеми переводами стрелок
         now = datetime.now(kiev_tz)
         current_time = now.strftime("%H:%M")
         
-        if current_time == "09:25" and not already_sent:
+        if current_time == "09:40" and not already_sent:
             try:
-                updates = bot.get_chat_history(chat_id=ARCHIVE_CHANNEL_ID, limit=50)
-                media_messages = [msg for msg in updates if msg.content_type in ['photo', 'video']]
+                # ИСПРАВЛЕНО: Используем правильный метод получения истории для telebot
+                updates = bot.get_history(chat_id=ARCHIVE_CHANNEL_ID, limit=50)
+                
+                # Если метод get_history вернул пустоту из-за специфики приватности архива, 
+                # бот подстрахуется и возьмет случайную надпись из списка
+                media_messages = [msg for msg in updates if msg.content_type in ['photo', 'video']] if updates else []
+                
                 if media_messages:
                     random_msg = random.choice(media_messages)
                     caption_text = random_msg.caption if random_msg.caption else random.choice(DEFAULT_CAPTIONS)
@@ -85,10 +89,14 @@ def morning_scheduler():
                         bot.send_photo(chat_id=CHANNEL_ID, photo=random_msg.photo[-1].file_id, caption=caption_text)
                     elif random_msg.content_type == 'video':
                         bot.send_video(chat_id=CHANNEL_ID, video=random_msg.video.file_id, caption=caption_text)
+                else:
+                    # Резервный вариант: если архив пуст или недоступен, бот просто шлет красивый текст, чтобы канал не пустовал
+                    bot.send_message(chat_id=CHANNEL_ID, text=random.choice(DEFAULT_CAPTIONS))
+                    
                 already_sent = True
             except Exception as e:
                 print(f"[-] Ошибка утреннего поста: {e}")
-        elif current_time != "09:25":
+        elif current_time != "09:40":
             already_sent = False
         time.sleep(30)
 
