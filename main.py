@@ -221,6 +221,9 @@ def show_settings_panel(message):
         reply_markup=get_settings_keyboard()
     )
 
+# Память для хранения очередей постов (чтобы посты не путались между вами и сестрой)
+USER_BUFFERS = {}
+
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callbacks(call):
     settings = load_settings()
@@ -251,49 +254,65 @@ def handle_callbacks(call):
         msg = bot.send_message(call.message.chat.id, prompt_texts[call.data])
         bot.register_next_step_handler(msg, process_setting_input, call.data)
         
-    # --- ЛОГИКА КНОПОК ОТПРАВКИ В КАНАЛЫ (С АВТОПОДПИСЯМИ) ---
+    # --- ЛОГИКА МАССОВОЙ ПУБЛИКАЦИИ ИЗ ОЧЕРЕДИ ---
     elif call.data in ["pub_my", "pub_sis", "pub_both"]:
-        msg_text = call.message.text or call.message.caption or ""
-        if "Предпросмотр анонса:" in msg_text:
-            msg_text = msg_text.replace("📝 Предпросмотр анонса:\n\n", "")
-            
-        # Умная зачистка старых подписей при пересылке, чтобы они не накладывались
-        msg_text = re.split(r'🛍 Для замовлень 🛍|🛍 Для замовлень сестри 🛍', msg_text)[0].strip()
-            
-        channels_to_publish = []
-        if call.data == "pub_my": channels_to_publish = [CHANNEL_ID]
-        elif call.data == "pub_sis": channels_to_publish = [CHANNEL_ID_SISTER]
-        elif call.data == "pub_both": channels_to_publish = [CHANNEL_ID, CHANNEL_ID_SISTER]
+        user_id = call.message.chat.id
+        queue = USER_BUFFERS.get(user_id, [])
         
-        try:
-            for ch_id in channels_to_publish:
-                # Бот проверяет ID канала и прикрепляет правильные контакты байера
-                if ch_id == CHANNEL_ID:
-                    signature = (
-                        "\n\n🛍 Для замовлень 🛍\n"
-                        "бандлер https://brandmenu.bunddler.com/web\n"
-                        "📲для зв'язку: @LankaMurrr"
-                    )
-                else:
-                    signature = (
-                        "\n\n🛍 Для замовлень 🛍\n"
-                        "бандлер https://nataliche16.bunddler.com/web\n"
-                        "📲для зв'язку: @nata_c_he"
-                    )
-                
-                final_text = f"{msg_text}{signature}"
-                
-                if call.message.content_type == 'text':
-                    bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
-                elif call.message.content_type == 'photo':
-                    bot.send_photo(chat_id=ch_id, photo=call.message.photo[-1].file_id, caption=final_text, parse_mode="HTML")
-                elif call.message.content_type == 'video':
-                    bot.send_video(chat_id=ch_id, video=call.message.video.file_id, caption=final_text, parse_mode="HTML")
+        if not queue:
+            bot.send_message(user_id, "❌ Ваша корзина заготовок пуста! Отправьте сначала посты.")
+            return
             
-            bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=None)
-            bot.send_message(call.message.chat.id, "🚀 Пост успешно опубликован в выбранные каналы!")
+        target_channels = []
+        if call.data == "pub_my": target_channels = [CHANNEL_ID]
+        elif call.data == "pub_sis": target_channels = [CHANNEL_ID_SISTER]
+        elif call.data == "pub_both": target_channels = [CHANNEL_ID, CHANNEL_ID_SISTER]
+        
+        bot.edit_message_text(f"⏳ Начинаю плавную отправку массива из **{len(queue)}** постов... Пожалуйста, подождите.", chat_id=user_id, message_id=call.message.message_id)
+        
+        success_count = 0
+        try:
+            for item in queue:
+                msg_type = item["type"]
+                file_id = item["file_id"]
+                msg_text = item["text"]
+                
+                # Умная зачистка старых подписей при пересылке, чтобы они не накладывались
+                msg_text = re.split(r'🛍 Для замовлень 🛍', msg_text)[0].strip()
+                
+                for ch_id in target_channels:
+                    # Подставляем контакты в зависимости от канала назначения
+                    if ch_id == CHANNEL_ID:
+                        signature = (
+                            "\n\n🛍 Для замовлень 🛍\n"
+                            "бандлер https://bunddler.com\n"
+                            "📲для зв'язку: @LankaMurrr"
+                        )
+                    else:
+                        signature = (
+                            "\n\n🛍 Для замовлень 🛍\n"
+                            "бандлер https://bunddler.com\n"
+                            "📲для зв'язку: @nata_c_he"
+                        )
+                    
+                    final_text = f"{msg_text}{signature}"
+                    
+                    if msg_type == 'text':
+                        bot.send_message(chat_id=ch_id, text=final_text, parse_mode="HTML", disable_web_page_preview=True)
+                    elif msg_type == 'photo':
+                        bot.send_photo(chat_id=ch_id, photo=file_id, caption=final_text, parse_mode="HTML")
+                    elif msg_type == 'video':
+                        bot.send_video(chat_id=ch_id, video=file_id, caption=final_text, parse_mode="HTML")
+                
+                success_count += 1
+                # Техническая пауза 2 секунды между постами для обхода Flood Control
+                time.sleep(2)
+                
+            # Очищаем корзину пользователя после успешной отправки
+            USER_BUFFERS[user_id] = []
+            bot.send_message(user_id, f"✅ Массив успешно опубликован! Все **{success_count}** постов разлетелись по каналам.")
         except Exception as e:
-            bot.send_message(call.message.chat.id, f"❌ Ошибка публикации: {e}. Убедитесь, что бот добавлен в админы каналов.")
+            bot.send_message(user_id, f"❌ Произошла ошибка на {success_count}-м посте: {e}. Проверьте права бота в каналах.")
 
 def process_setting_input(message, action):
     try:
@@ -311,31 +330,50 @@ def process_setting_input(message, action):
     except:
         bot.send_message(message.chat.id, "❌ Ошибка! Нужно ввести корректное число. Попробуйте снова через меню /settings.")
 
-# --- ХЕНДЛЕР ПРИЕМА АНОНСОВ ДЛЯ ПРЕДПРОСМОТРА ---
+# --- ХЕНДЛЕР СБОРНИКА ПОСТОВ В КОРЗИНУ ---
 @bot.message_handler(content_types=['text', 'photo', 'video'])
 def handle_message(message):
     text = message.text or message.caption or ""
     if not text: return
     if text.startswith('/'): return
     
+    user_id = message.chat.id
+    if user_id not in USER_BUFFERS:
+        USER_BUFFERS[user_id] = []
+        
+    # Команда "Давай" запускает меню публикации всего массива
+    if text.strip().lower() in ["давай", "давай ", "готово"]:
+        queue_len = len(USER_BUFFERS[user_id])
+        if queue_len == 0:
+            bot.send_message(user_id, "🫙 Ваша корзина пуста. Сначала накидайте анонсов с ценами!")
+            return
+            
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        btn_my = types.InlineKeyboardButton("🛍️ В мой канал", callback_data="pub_my")
+        btn_sis = types.InlineKeyboardButton("👭 В канал сестры", callback_data="pub_sis")
+        btn_both = types.InlineKeyboardButton("🌍 В оба канала", callback_data="pub_both")
+        markup.add(btn_my, btn_sis)
+        markup.add(btn_both)
+        
+        bot.send_message(user_id, f"📦 В корзине собрано **{queue_len}** пересчитанных анонсов.\nКуда отправляем этот массив?", reply_markup=markup)
+        return
+
+    # Пересчитываем цены для текущего анонса
     new_text = clean_and_convert_text(text)
     
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    btn_my = types.InlineKeyboardButton("🛍️ В мой канал", callback_data="pub_my")
-    btn_sis = types.InlineKeyboardButton("👭 В канал сестры", callback_data="pub_sis")
-    btn_both = types.InlineKeyboardButton("🌍 В оба канала", callback_data="pub_both")
-    markup.add(btn_my, btn_sis)
-    markup.add(btn_both)
+    file_id = None
+    if message.content_type == 'photo': file_id = message.photo[-1].file_id
+    elif message.content_type == 'video': file_id = message.video.file_id
     
-    try:
-        if message.content_type == 'text':
-            bot.send_message(message.chat.id, f"📝 **Предпросмотр анонса:**\n\n{new_text}", parse_mode="HTML", reply_markup=markup, disable_web_page_preview=True)
-        elif message.content_type == 'photo':
-            bot.send_photo(message.chat.id, photo=message.photo[-1].file_id, caption=new_text, parse_mode="HTML", reply_markup=markup)
-        elif message.content_type == 'video':
-            bot.send_video(message.chat.id, video=message.video.file_id, caption=new_text, parse_mode="HTML", reply_markup=markup)
-    except Exception as e:
-        bot.reply_to(message, f"Ошибка предпросмотра: {e}")
+    # Добавляем пост в буфер конкретного пользователя
+    USER_BUFFERS[user_id].append({
+        "type": message.content_type,
+        "file_id": file_id,
+        "text": new_text
+    })
+    
+    # Бот присылает короткую отметку, что пост успешно пересчитан и отложен
+    bot.reply_to(message, f"📥 Добавлен в массив (Всего: {len(USER_BUFFERS[user_id])}). Когда закончите, напишите слово **Давай**")
 
 if __name__ == "__main__":
     scheduler_thread = threading.Thread(target=morning_scheduler, daemon=True)
