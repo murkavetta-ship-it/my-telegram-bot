@@ -153,16 +153,28 @@ def clean_and_convert_text(text, profile="my"):
                     text = text.replace(raw_match, f"{uah_price}грн+вага")
                 except: continue
     else:
-        if "href" in text:
-            pass
-        else:
-            urls = re.findall(r'https?://[^\s]+', text)
-            if urls:
-                original_price, currency = fetch_price_from_url(urls)
-                if original_price:
-                    rate = settings["usd_rate"] if currency == 'USD' else (settings["eur_rate"] if currency == 'EUR' else settings["gbp_rate"])
-                    final_price = math.ceil(original_price * discount_factor * rate * current_commission)
-                    text = f"{final_price}грн+вага\n{urls}"
+        urls = re.findall(r'https?://[^\s]+', text)
+        if urls:
+            url = urls[0] if isinstance(urls, list) else urls
+            original_price, currency = fetch_price_from_url([url] if isinstance(url, str) else url)
+            if original_price:
+                rate = settings["usd_rate"] if currency == 'USD' else (settings["eur_rate"] if currency == 'EUR' else settings["gbp_rate"])
+                final_price = math.ceil(original_price * discount_factor * rate * current_commission)
+                
+                # Достаем чистое название, убирая ссылку, старую цену и валюту
+                clean_name = re.sub(r'https?://[^\s]+', '', text).strip()
+                clean_name = re.sub(r'[\d.,\s€$£]+', '', clean_name).strip()
+                clean_name = clean_name.replace("грн+вага", "").strip()
+                
+                # Если названия не было — ставим стандартное слово
+                if not clean_name:
+                    clean_name = "Переглянути"
+                
+                # Красиво упаковываем ЛЮБОЕ название в стрелочки
+                styled_name = f"➡️{clean_name}⬅️"
+                
+                # Собираем красивую скрытую ссылку
+                text = f'{final_price} грн+вага <a href="{url}">{styled_name}</a>'
 
     text = text.replace("грн+вага+вага", "грн+вага")
     return text.strip()
