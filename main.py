@@ -131,12 +131,14 @@ def clean_and_convert_text(text, profile="my"):
         
     current_commission = 1.05 if "crocs" in text.lower() else settings["commission"]
     
-    # === НАЧАЛО ЗАМЕНЫ (СТРОКА 134) ===
-    # Находим цену с валютой в тексте сообщения
+    # 1. Создаем копию текста без HTML-тегов для точного поиска цены
+    clean_text_for_prices = re.sub(r'<[^>]+>', '', text)
+    
+    # 2. Ищем цену в очищенном тексте (любые пробелы, точки, запятые)
     currency_pattern = r'[\$€£]\s*\d+[\.,]?\d*|\d+[\.,]?\d*\s*[\$€£]'
-    matches = re.findall(currency_pattern, text)
+    matches = re.findall(currency_pattern, clean_text_for_prices)
 
-    # Вытаскиваем только ПЕРВУЮ чистую ссылку текстом (чтобы не было квадратных скобок списка)
+    # 3. Вытаскиваем только ПЕРВУЮ чистую ссылку текстом (чтобы не было квадратных скобок списка)
     urls = re.findall(r'https?://[^\s]+', text)
     target_url = urls[0].strip() if urls else ""
 
@@ -156,8 +158,11 @@ def clean_and_convert_text(text, profile="my"):
                     elif symbol == '£': rate = settings["gbp_rate"]
 
                     uah_price = math.ceil(price_val * discount_factor * rate * current_commission)
-                    # Подменяем старую цену на пересчитанную в грн
-                    text = text.replace(raw_match, f"{uah_price} грн+вага")
+                    
+                    # Находим старую цену в оригинальном тексте и жестко меняем на грн
+                    just_digits = price_digit_match.group()
+                    escaped_digits = re.escape(just_digits)
+                    text = re.sub(rf'[\$€£]\s*{escaped_digits}|\s*{escaped_digits}\s*[\$€£]', f"{uah_price} грн+вага", text)
                 except:
                     continue
 
