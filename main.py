@@ -132,9 +132,13 @@ def clean_and_convert_text(text, profile="my"):
     current_commission = 1.05 if "crocs" in text.lower() else settings["commission"]
     
     # === НАЧАЛО ЗАМЕНЫ (СТРОКА 134) ===
-    # Максимально гибкий поиск цены с валютой (любые пробелы, точки, запятые)
+    # Находим цену с валютой в тексте сообщения
     currency_pattern = r'[\$€£]\s*\d+[\.,]?\d*|\d+[\.,]?\d*\s*[\$€£]'
     matches = re.findall(currency_pattern, text)
+
+    # Вытаскиваем только ПЕРВУЮ чистую ссылку текстом (чтобы не было квадратных скобок списка)
+    urls = re.findall(r'https?://[^\s]+', text)
+    target_url = urls[0].strip() if urls else ""
 
     if matches:
         unique_matches = list(dict.fromkeys(matches))
@@ -152,38 +156,40 @@ def clean_and_convert_text(text, profile="my"):
                     elif symbol == '£': rate = settings["gbp_rate"]
 
                     uah_price = math.ceil(price_val * discount_factor * rate * current_commission)
-                    # Жестко меняем старую цену на новую в гривнах
+                    # Подменяем старую цену на пересчитанную в грн
                     text = text.replace(raw_match, f"{uah_price} грн+вага")
                 except:
                     continue
 
-    # Финальный блок: упаковка ссылки. Работает ВСЕГДА, даже если цена не распозналась
-    urls = re.findall(r'https?://[^\s]+', text)
-    if urls:
-        url = urls if isinstance(urls, list) else urls
+    # Финальный блок: упаковка ссылки в стрелочки
+    if target_url:
         if "href" not in text:
-            # Очищаем текст от ссылки, чтобы вытащить чистое название товара
-            clean_name = re.sub(r'https?://[^\s]+', '', text).strip()
-            # Удаляем старые упоминания валют и посчитанную цену для формирования чистого анкора
+            # Очищаем текст от сырой ссылки, старых цен и валют, чтобы выудить чистое название
+            clean_name = text.replace(target_url, "").strip()
             clean_name = re.sub(r'[\$€£\d.,\+]+', '', clean_name).strip()
             clean_name = clean_name.replace("грнвага", "").replace("грн", "").replace("вага", "").strip()
             
-            # Убираем технические хвосты и смайлики из начала названия
-            clean_name = re.sub(r'^[_*\s\W]+', '', clean_name).strip()
+            # Убираем восклицательные знаки и технический мусор из начала названия
+            clean_name = re.sub(r'^[‼‼️!_*\s\W]+', '', clean_name).strip()
+            # Убираем хештеги (например, #Lacoste)
+            clean_name = re.sub(r'#\w+', '', clean_name).strip()
             
             if not clean_name:
                 clean_name = "Переглянути"
             
-            # Ищем, была ли успешно добавлена цена в грн
+            # Оформим название в фирменные стрелочки
+            styled_name = f"➡️{clean_name}⬅️"
+            
+            # Ищем, успели ли мы посчитать цену в грн
             price_match = re.search(r'\d+\s*грн\+вага', text)
             if price_match:
                 price_str = price_match.group()
-                text = f'{price_str} ➡️{clean_name}⬅️'
+                text = f'{price_str} {styled_name}'
             else:
-                # Подстраховка: если цена не пересчиталась, просто красиво оформляем название в стрелочки
-                text = f'➡️{clean_name}⬅️'
+                text = styled_name
                 
-            text = f'<a href="{url}">{text}</a>'
+            # Оборачиваем всю конструкцию в чистый HTML-тег
+            text = f'<a href="{target_url}">{text}</a>'
 
     text = text.replace("грн+вага+вага", "грн+вага")
     return text.strip()
