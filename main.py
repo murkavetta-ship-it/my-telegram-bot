@@ -186,13 +186,11 @@ def clean_and_convert_text(text, profile="my"):
             price_match = re.search(r'\d+\s*грн\+вага', text)
             if price_match:
                 price_str = price_match.group()
-                # Собираем красивую, цельную строчку: Цена + Стрелочки вокруг чистого названия
-                text = f"{price_str} ➡️{clean_name}⬅️"
+                # Оборачиваем в кликабельную ссылку ТОЛЬКО название в стрелочках, а цену оставляем обычным текстом снаружи!
+                text = f'{price_str} <a href="{target_url}">{styled_name}</a>'
             else:
-                text = f"➡️{clean_name}⬅️"
-                
-            # Оборачиваем всю красивую строчку целиком в HTML-ссылку
-            text = f'<a href="{target_url}">{text}</a>'
+                # Если цены нет, просто делаем кликабельным название
+                text = f'<a href="{target_url}">{styled_name}</a>'
 
     text = text.replace("грн+вага+вага", "грн+вага")
     return text.strip()
