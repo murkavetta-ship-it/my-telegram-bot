@@ -210,6 +210,11 @@ def handle_callbacks(call):
     profile_title = "Шоппинг 🛍️" if profile == "sis" else "Брендменю 👑"
     user_id = call.message.chat.id
     
+    if call.data == "cancel_queue":
+        USER_BUFFERS[user_id] = [] # Полностью очищаем корзину!
+        bot.edit_message_text("❌ Сборка серии полностью отменена. Корзина очищена! Можно закидывать новые посты.", chat_id=user_id, message_id=call.message.message_id)
+        return
+   
     if call.data.startswith("toggle_sig_"):
         current_sig = settings.get("use_signature", True)
         all_settings[profile]["use_signature"] = not current_sig
@@ -334,8 +339,11 @@ def show_channel_selection(user_id, message_id, target_time):
     btn_my = types.InlineKeyboardButton("🛍️ В  Брендменю", callback_data=f"target_my_{target_time}")
     btn_sis = types.InlineKeyboardButton("🛍️ В Шоппинг", callback_data=f"target_sis_{target_time}")
     btn_both = types.InlineKeyboardButton("🔵 В оба канала", callback_data=f"target_both_{target_time}")
+    btn_cancel = types.InlineKeyboardButton("❌ Отменить и очистить", callback_data="cancel_queue") # НАША НОВАЯ КНОПКА!
+    
     markup.add(btn_my, btn_sis)
     markup.add(btn_both)
+    markup.add(btn_cancel) # ДОБАВЛЯЕМ ЕЁ НА ПАНЕЛЬ!
     
     text_time = "прямо сейчас" if target_time == "now" else f"в {target_time}"
     if message_id:
