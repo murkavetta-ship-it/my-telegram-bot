@@ -15,8 +15,8 @@ from telebot import types
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = -1003801282424          # Ваш основной канал "Брендменю"
 CHANNEL_ID_SISTER = -1004398394951   # Канал "Шоппинг" сестры
-ARCHIVE_CHANNEL_ID = -1003783532522  # ВАШ РЕАЛЬНЫЙ АРХИВ ДЛЯ ТАЙМЕРОВ ФОТО!
-MORNING_CHANNEL_ID = -1003735848662  # ВАШ НАСТОЯЩИЙ КАНАЛ С КАРТИНКАМИ УТРА!
+ARCHIVE_CHANNEL_ID = -1004331909805  # ВАШ РЕАЛЬНЫЙ АРХИВ ДЛЯ ТАЙМЕРОВ ФОТО!
+MORNING_CHANNEL_ID = -1003783532522  # ВАШ НАСТОЯЩИЙ КАНАЛ С КАРТИНКАМИ УТРА!
 
 # ЖЕЛЕЗНО ПОДНЯТЫЕ КОРЗИНЫ НАВЕРХ ДЛЯ УСТРАНЕНИЯ NAMEERROR:
 USER_BUFFERS = {}
