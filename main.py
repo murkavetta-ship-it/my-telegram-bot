@@ -131,53 +131,63 @@ def clean_and_convert_text(text, profile="my"):
         
     current_commission = 1.05 if "crocs" in text.lower() else settings["commission"]
     
-    currency_pattern = r'(?:\$[\d\s.,]+)|(?:[\d\s.,]+\$)|(?:€[\d\s.,]+)|(?:[\d\s.,]+€)|(?:£[\d\s.,]+)|(?:[\d\s.,]+£)'
-    matches = [m.group() for m in re.finditer(currency_pattern, text)] if any(s in text for s in '$€£') else []
-    
+    # === НАЧАЛО ЗАМЕНЫ (СТРОКА 134) ===
+    # Максимально гибкий поиск цены с валютой (любые пробелы, точки, запятые)
+    currency_pattern = r'[\$€£]\s*\d+[\.,]?\d*|\d+[\.,]?\d*\s*[\$€£]'
+    matches = re.findall(currency_pattern, text)
+
     if matches:
         unique_matches = list(dict.fromkeys(matches))
         for raw_match in unique_matches:
-            price_digit_match = re.search(r'\d+(?:[.,]\d+)?', raw_match)
+            price_digit_match = re.search(r'\d+[\.,]?\d*', raw_match)
             symbol_match = re.search(r'[\$€£]', raw_match)
-            
+
             if price_digit_match and symbol_match:
                 try:
                     price_val = float(price_digit_match.group().replace(',', '.'))
                     symbol = symbol_match.group()
-                    
+
                     if symbol == '$': rate = settings["usd_rate"]
                     elif symbol == '€': rate = settings["eur_rate"]
                     elif symbol == '£': rate = settings["gbp_rate"]
-                    
+
                     uah_price = math.ceil(price_val * discount_factor * rate * current_commission)
-                    text = text.replace(raw_match, f"{uah_price}грн+вага")
-                except: continue
-    else:
-        urls = re.findall(r'https?://[^\s]+', text)
-        if urls:
-            url = urls[0] if isinstance(urls, list) else urls
-            original_price, currency = fetch_price_from_url([url] if isinstance(url, str) else url)
-            if original_price:
-                rate = settings["usd_rate"] if currency == 'USD' else (settings["eur_rate"] if currency == 'EUR' else settings["gbp_rate"])
-                final_price = math.ceil(original_price * discount_factor * rate * current_commission)
+                    # Жестко меняем старую цену на новую в гривнах
+                    text = text.replace(raw_match, f"{uah_price} грн+вага")
+                except:
+                    continue
+
+    # Финальный блок: упаковка ссылки. Работает ВСЕГДА, даже если цена не распозналась
+    urls = re.findall(r'https?://[^\s]+', text)
+    if urls:
+        url = urls if isinstance(urls, list) else urls
+        if "href" not in text:
+            # Очищаем текст от ссылки, чтобы вытащить чистое название товара
+            clean_name = re.sub(r'https?://[^\s]+', '', text).strip()
+            # Удаляем старые упоминания валют и посчитанную цену для формирования чистого анкора
+            clean_name = re.sub(r'[\$€£\d.,\+]+', '', clean_name).strip()
+            clean_name = clean_name.replace("грнвага", "").replace("грн", "").replace("вага", "").strip()
+            
+            # Убираем технические хвосты и смайлики из начала названия
+            clean_name = re.sub(r'^[_*\s\W]+', '', clean_name).strip()
+            
+            if not clean_name:
+                clean_name = "Переглянути"
+            
+            # Ищем, была ли успешно добавлена цена в грн
+            price_match = re.search(r'\d+\s*грн\+вага', text)
+            if price_match:
+                price_str = price_match.group()
+                text = f'{price_str} ➡️{clean_name}⬅️'
+            else:
+                # Подстраховка: если цена не пересчиталась, просто красиво оформляем название в стрелочки
+                text = f'➡️{clean_name}⬅️'
                 
-                # Достаем чистое название, убирая ссылку, старую цену и валюту
-                clean_name = re.sub(r'https?://[^\s]+', '', text).strip()
-                clean_name = re.sub(r'[\d.,\s€$£]+', '', clean_name).strip()
-                clean_name = clean_name.replace("грн+вага", "").strip()
-                
-                # Если названия не было — ставим стандартное слово
-                if not clean_name:
-                    clean_name = "Переглянути"
-                
-                # Красиво упаковываем ЛЮБОЕ название в стрелочки
-                styled_name = f"➡️{clean_name}⬅️"
-                
-                # Собираем красивую скрытую ссылку
-                text = f'{final_price} грн+вага <a href="{url}">{styled_name}</a>'
+            text = f'<a href="{url}">{text}</a>'
 
     text = text.replace("грн+вага+вага", "грн+вага")
     return text.strip()
+    # === КОНЕЦ ФУНКЦИИ ===
 
 def get_settings_keyboard(user_id):
     all_settings = load_settings()
