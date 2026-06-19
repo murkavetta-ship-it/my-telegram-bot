@@ -369,6 +369,7 @@ def execute_instant_publication(queue, target_channels, user_id):
             settings = all_settings.get(current_profile, {})
             
             if clean_raw_text:
+                pass
                 # clean_raw_text = re.sub(r'📲?\s*(?:для зв\'язку|контакт|зв\'язок)?\s*:\s*@\w+', '', clean_raw_text, flags=re.IGNORECASE)
                 # clean_raw_text = re.sub(r'(?:бандлер|замовлення|сайт)?\s*https?://[^\s]+', '', clean_raw_text, flags=re.IGNORECASE).strip()
                 
