@@ -182,15 +182,15 @@ def clean_and_convert_text(text, profile="my"):
             if not clean_name:
                 clean_name = "Переглянути"
             
-            # Ищем посчитанную цену в грн
-            price_match = re.search(r'\d+\s*грн\+вага', text)
-            if price_match:
-                price_str = price_match.group()
-                # Оборачиваем в кликабельную ссылку ТОЛЬКО название в стрелочках, а цену оставляем обычным текстом снаружи!
-                text = f'{price_str} <a href="{target_url}">{styled_name}</a>'
-            else:
-                # Если цены нет, просто делаем кликабельным название
-                text = f'<a href="{target_url}">{styled_name}</a>'
+                # Ищем посчитанную цену в грн
+                price_match = re.search(r'\d+\s*грн\+вага', text)
+                if price_match:
+                    price_str = price_match.group()
+                    # Цена идет обычным текстом, а ссылка — ТОЛЬКО на название в стрелочках
+                    text = f'{price_str} <a href="{target_url}">➡️{clean_name}⬅️</a>'
+                else:
+                    # Если цены нет, просто делаем ссылку на название в стрелочках
+                    text = f'<a href="{target_url}">➡️{clean_name}⬅️</a>'
 
     text = text.replace("грн+вага+вага", "грн+вага")
     return text.strip()
