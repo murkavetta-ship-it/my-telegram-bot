@@ -535,9 +535,9 @@ def morning_scheduler():
                     continue
 
             # --- 2. УТРЕННИЙ ПОСТ В 08:30 (БЕРЕМ ИЗ MORNING_CHANNEL_ID) ---
-            if current_time == "08:30" and not morning_sent_today:
+            if current_time == "09:05" and not morning_sent_today:
                 morning_published = False
-                potential_morning_ids = list(range(1, 500))
+                potential_morning_ids = list(range(1, 10))
                 random.shuffle(potential_morning_ids)
                 
                 for r_id in potential_morning_ids:
