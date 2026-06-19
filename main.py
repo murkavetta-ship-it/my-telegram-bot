@@ -431,7 +431,7 @@ def execute_instant_publication(queue, target_channels, user_id):
 def handle_message(message):
     try:
         user_id = message.chat.id
-        text = message.text if message.text else (message.caption if message.caption else "")
+        text = message.html_text if message.html_text else (message.html_caption if message.html_caption else "")
         
         if user_id not in USER_BUFFERS:
             USER_BUFFERS[user_id] = []
