@@ -153,14 +153,17 @@ def clean_and_convert_text(text, profile="my"):
                     text = text.replace(raw_match, f"{uah_price}грн+вага")
                 except: continue
     else:
-        urls = re.findall(r'https?://[^\s]+', text)
-        if urls:
-            original_price, currency = fetch_price_from_url(urls)
-            if original_price:
-                rate = settings["usd_rate"] if currency == 'USD' else (settings["eur_rate"] if currency == 'EUR' else settings["gbp_rate"])
-                final_price = math.ceil(original_price * discount_factor * rate * current_commission)
-                text = f"{final_price}грн+вага\n{urls}"
-                
+        if "href" in text:
+            pass
+        else:
+            urls = re.findall(r'https?://[^\s]+', text)
+            if urls:
+                original_price, currency = fetch_price_from_url(urls)
+                if original_price:
+                    rate = settings["usd_rate"] if currency == 'USD' else (settings["eur_rate"] if currency == 'EUR' else settings["gbp_rate"])
+                    final_price = math.ceil(original_price * discount_factor * rate * current_commission)
+                    text = f"{final_price}грн+вага\n{urls}"
+
     text = text.replace("грн+вага+вага", "грн+вага")
     return text.strip()
 
@@ -369,9 +372,17 @@ def execute_instant_publication(queue, target_channels, user_id):
             settings = all_settings.get(current_profile, {})
             
             if clean_raw_text:
-                pass
-                # clean_raw_text = re.sub(r'📲?\s*(?:для зв\'язку|контакт|зв\'язок)?\s*:\s*@\w+', '', clean_raw_text, flags=re.IGNORECASE)
-                # clean_raw_text = re.sub(r'(?:бандлер|замовлення|сайт)?\s*https?://[^\s]+', '', clean_raw_text, flags=re.IGNORECASE).strip()
+                # 1. Удаляем целиком строки, в которых есть чужие юзернеймы (@менеджер)
+                clean_raw_text = re.sub(r'(?m)^.*@\w+.*$\n?', '', clean_raw_text)
+                
+                # 2. Удаляем чужие ссылки на bunddler (как обычные, так и HTML-теги целиком со всей строкой)
+                clean_raw_text = re.sub(r'(?m)^.*bunddler.*$\n?', '', clean_raw_text, flags=re.IGNORECASE)
+                
+                # 3. Удаляем целиком строки, где есть номера телефонов (в любых форматах: +380, 050 и т.д.)
+                clean_raw_text = re.sub(r'(?m)^.*(?:\+?38)?(?:\s*\(?\d{3}\)?\s*[\s|-]?\d{3}[\s|-]?\d{2}[\s|-]?\d{2}).*$\n?', '', clean_raw_text)
+                
+                # Зачищаем лишние пустые строки, которые могли остаться после удаления
+                clean_raw_text = clean_raw_text.strip()
                 
             msg_text = clean_and_convert_text(clean_raw_text, current_profile) if clean_raw_text else ""
             
