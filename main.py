@@ -166,34 +166,32 @@ def clean_and_convert_text(text, profile="my"):
                 except:
                     continue
 
-    # Финальный блок: упаковка ссылки в стрелочки
+    # Финальный блок: упаковка ссылки в стрелочки (Исправленный)
     if target_url:
         if "href" not in text:
-            # Очищаем текст от сырой ссылки, старых цен и валют, чтобы выудить чистое название
-            clean_name = text.replace(target_url, "").strip()
-            clean_name = re.sub(r'[\$€£\d.,\+]+', '', clean_name).strip()
-            clean_name = clean_name.replace("грнвага", "").replace("грн", "").replace("вага", "").strip()
+            # Находим только строки, содержащие буквы (название товара), полностью игнорируя строки с ценами и процентами
+            lines = text.split('\n')
+            clean_name = ""
+            for line in lines:
+                # Если в строке есть буквы и нет слов "грн" или "вага" — это наше название!
+                if re.search(r'[a-zA-Zа-яА-ЯіІєЄїЇґҐ]', line) and "грн" not in line and "вага" not in line:
+                    clean_name = line.strip()
+                    break
             
-            # Убираем восклицательные знаки и технический мусор из начала названия
-            clean_name = re.sub(r'^[‼‼️!_*\s\W]+', '', clean_name).strip()
-            # Убираем хештеги (например, #Lacoste)
-            clean_name = re.sub(r'#\w+', '', clean_name).strip()
-            
+            # Подстраховка, если название не удалось вытащить
             if not clean_name:
                 clean_name = "Переглянути"
             
-            # Оформим название в фирменные стрелочки
-            styled_name = f"➡️{clean_name}⬅️"
-            
-            # Ищем, успели ли мы посчитать цену в грн
+            # Ищем посчитанную цену в грн
             price_match = re.search(r'\d+\s*грн\+вага', text)
             if price_match:
                 price_str = price_match.group()
-                text = f'{price_str} {styled_name}'
+                # Собираем красивую, цельную строчку: Цена + Стрелочки вокруг чистого названия
+                text = f"{price_str} ➡️{clean_name}⬅️"
             else:
-                text = styled_name
+                text = f"➡️{clean_name}⬅️"
                 
-            # Оборачиваем всю конструкцию в чистый HTML-тег
+            # Оборачиваем всю красивую строчку целиком в HTML-ссылку
             text = f'<a href="{target_url}">{text}</a>'
 
     text = text.replace("грн+вага+вага", "грн+вага")
